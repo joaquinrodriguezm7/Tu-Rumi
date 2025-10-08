@@ -8,13 +8,13 @@ import {
   Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router"; 
+import { useRouter } from "expo-router";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter(); 
+  const router = useRouter();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -24,6 +24,8 @@ export default function Login() {
 
     try {
       setLoading(true);
+
+      // 🔹 Request al login
       const res = await fetch("https://turumiapi.onrender.com/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -32,14 +34,51 @@ export default function Login() {
 
       const data = await res.json();
 
-      if (res.ok) {
+      if (res.ok && data.token) {
+        // Guardar token y user en AsyncStorage
         await AsyncStorage.setItem("token", data.token);
-        await AsyncStorage.setItem("user", JSON.stringify(data.user));
+        if (data.user) {
+          await AsyncStorage.setItem("user", JSON.stringify(data.user));
+        }
 
-        console.log("Token:", data.token);
-        console.log("Usuario:", data.user);
+        console.log("✅ Token:", data.token);
+        console.log("✅ Usuario:", data.user);
 
-        router.replace("/(tabs)/matching"); 
+        // 🔹 Intentar obtener el perfil (puede fallar si no está en Render todavía)
+        try {
+          const profileRes = await fetch(
+            "https://turumiapi.onrender.com/user",
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${data.token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          let profileData;
+          try {
+            profileData = await profileRes.json();
+          } catch {
+            profileData = await profileRes.text();
+          }
+
+          if (profileRes.ok) {
+            console.log("📌 Perfil obtenido:", profileData);
+          } else {
+            console.warn(
+              "⚠️ No se pudo obtener perfil:",
+              profileRes.status,
+              profileData
+            );
+          }
+        } catch (err) {
+          console.warn("⚠️ Error al obtener perfil:", err.message);
+        }
+
+        // 🔹 Redirigir a pantalla principal
+        router.replace("/(tabs)/matching");
       } else {
         Alert.alert("❌ Error", data.message || "Credenciales inválidas");
       }
