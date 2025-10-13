@@ -33,7 +33,7 @@ export default function Settings() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Pantalla Ajustes ⚙️</Text>
+      <Text style={styles.text}>Pantalla registerPreferences ⚙️</Text>
 
       <TouchableOpacity style={styles.button} onPress={handleLogout}>
         <Text style={styles.buttonText}>Cerrar sesión 🚪</Text>

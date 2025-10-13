@@ -6,9 +6,37 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import axios from "axios";
+
+let Cookies = null;
+if (Platform.OS !== "web") {
+  Cookies = require("@react-native-cookies/cookies").default;
+}
+
+axios.defaults.baseURL = "https://turumiapi.onrender.com";
+axios.defaults.withCredentials = true;
+
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.data?.code === "ACCESS_TOKEN_EXPIRED") {
+      console.warn("🔁 Token expirado, refrescando...");
+      try {
+        await axios.get("/auth/refresh", { withCredentials: true });
+        console.log("✅ Token refrescado correctamente");
+        return axios(error.config);
+      } catch (refreshError) {
+        console.error("❌ Error al refrescar token:", refreshError);
+        Alert.alert("Sesión expirada", "Por favor vuelve a iniciar sesión.");
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,79 +44,75 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Debes ingresar email y contraseña");
-      return;
-    }
+  const getCsrfToken = async () => {
+    if (Platform.OS === "web") return null;
 
     try {
-      setLoading(true);
-
-      // 🔹 Request al login
-      const res = await fetch("https://turumiapi.onrender.com/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.token) {
-        // Guardar token y user en AsyncStorage
-        await AsyncStorage.setItem("token", data.token);
-        if (data.user) {
-          await AsyncStorage.setItem("user", JSON.stringify(data.user));
-        }
-
-        console.log("✅ Token:", data.token);
-        console.log("✅ Usuario:", data.user);
-
-        // 🔹 Intentar obtener el perfil (puede fallar si no está en Render todavía)
-        try {
-          const profileRes = await fetch(
-            "https://turumiapi.onrender.com/user",
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${data.token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          let profileData;
-          try {
-            profileData = await profileRes.json();
-          } catch {
-            profileData = await profileRes.text();
-          }
-
-          if (profileRes.ok) {
-            console.log("📌 Perfil obtenido:", profileData);
-          } else {
-            console.warn(
-              "⚠️ No se pudo obtener perfil:",
-              profileRes.status,
-              profileData
-            );
-          }
-        } catch (err) {
-          console.warn("⚠️ Error al obtener perfil:", err.message);
-        }
-
-        // 🔹 Redirigir a pantalla principal
-        router.replace("/(tabs)/matching");
-      } else {
-        Alert.alert("❌ Error", data.message || "Credenciales inválidas");
-      }
-    } catch (error) {
-      Alert.alert("Error", "No se pudo conectar con el servidor");
-      console.error(error);
-    } finally {
-      setLoading(false);
+      const cookies = await Cookies.get("https://turumiapi.onrender.com");
+      return cookies.csrfToken?.value || null;
+    } catch (err) {
+      console.error("❌ Error obteniendo CSRF Token:", err);
+      return null;
     }
   };
+
+const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert("Error", "Debes ingresar email y contraseña");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const csrfToken = await getCsrfToken();
+
+    const res = await axios.post(
+      "/auth/login",
+      { email, password },
+      { headers: csrfToken ? { "x-csrf-token": csrfToken } : {} }
+    );
+
+    console.log("✅ Login correcto:", res.data);
+
+    let user = res.data.user || {};
+    const userId = user.id_user || user.id;
+
+    // 🔸 Si el login no devuelve todos los datos, pedimos el perfil completo
+    if (!user.name || !user.age || !user.gender || !user.phone_number) {
+      console.log("🔎 Obteniendo datos completos del usuario...");
+      const profileRes = await axios.get(`/user/${userId}`);
+      user = profileRes.data;
+      console.log("👀 Usuario completo:", user);
+    }
+
+    await AsyncStorage.setItem("user", JSON.stringify(user));
+
+    // 🔹 Validamos perfil
+    const requiredFields = ["name", "age", "gender", "phone_number"];
+    const missingFields = requiredFields.filter(
+      (f) =>
+        user[f] === null ||
+        user[f] === undefined ||
+        String(user[f]).trim() === ""
+    );
+
+    if (missingFields.length > 0) {
+      console.log("🧩 Faltan campos del perfil:", missingFields);
+      router.replace("/registerProfile");
+    } else {
+      console.log("💙 Perfil completo, yendo a matching...");
+      router.replace("/(tabs)/matching");
+    }
+  } catch (error) {
+    console.error("❌ Error en login:", error.response?.data || error.message);
+    Alert.alert(
+      "Error",
+      error.response?.data?.message || "Credenciales inválidas"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -124,6 +148,7 @@ export default function Login() {
   );
 }
 
+// 🎨 Estilos
 const styles = StyleSheet.create({
   container: {
     flex: 1,

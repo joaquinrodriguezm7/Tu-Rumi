@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { Picker } from "@react-native-picker/picker"; // 👈 instalar si no lo tienes
+import { Picker } from "@react-native-picker/picker"; // 👈 mantenerlo
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -43,9 +43,14 @@ export default function Register() {
 
       console.log("✅ Usuario creado:", data);
 
-      await AsyncStorage.setItem("user", JSON.stringify(data));
-      Alert.alert("✅ Registro exitoso", "Ahora puedes iniciar sesión");
-      router.replace("/login");
+      // No guardamos sesión ni más lógica, solo avisamos
+      Alert.alert("✅ Registro exitoso", "Usuario registrado correctamente");
+
+      // Redirigir al login tras un breve delay
+      setTimeout(() => {
+        router.replace("/login");
+      }, 1500);
+
     } catch (error) {
       console.error("Error en registro:", error.message);
       Alert.alert("Error", "No se pudo crear el usuario: " + error.message);
