@@ -5,45 +5,39 @@ import {
   StyleSheet,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import Swiper from "react-native-deck-swiper";
-import { ThumbsUp, ThumbsDown } from "lucide-react-native"; // 👈 íconos
+import { ThumbsUp, ThumbsDown } from "lucide-react-native";
+import axios from "axios";
 
 const { width } = Dimensions.get("window");
 
 export default function Matching() {
   const [users, setUsers] = useState([]);
   const [showEmpty, setShowEmpty] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // 👇 Mock data con imagen
   useEffect(() => {
-    setUsers([
-      {
-        id: 1,
-        name: "María",
-        age: 23,
-        carrera: "Ingeniería",
-        bio: "Me gusta leer y correr 🏃‍♀️",
-        photo: require("../../assets/juan.jpeg"),
-      },
-      {
-        id: 2,
-        name: "José",
-        age: 25,
-        carrera: "Derecho",
-        bio: "Fanático del cine 🎬",
-        photo: require("../../assets/juan.jpeg"),
-      },
-      {
-        id: 3,
-        name: "Ana",
-        age: 22,
-        carrera: "Medicina",
-        bio: "Amo los perros 🐶",
-        photo: require("../../assets/juan.jpeg"),
-      },
-    ]);
+    axios.get("https://turumiapi.onrender.com/user")
+      .then(res => {
+        setUsers(res.data);
+      })
+      .catch(err => {
+        console.error("Error al obtener usuarios:", err);
+        setUsers([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#4D96FF" />
+        <Text style={{marginTop: 16}}>Cargando usuarios...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -52,13 +46,20 @@ export default function Matching() {
         renderCard={(user) =>
           user ? (
             <View style={styles.card}>
-              <Image source={user.photo} style={styles.image} />
+              {/* Si tienes una propiedad de foto, usa user.photo, si no, muestra un placeholder */}
+              {user.photo_url ? (
+                <Image source={{ uri: user.photo_url }} style={styles.image} />
+              ) : (
+                <View style={[styles.image, {justifyContent:'center',alignItems:'center',backgroundColor:'#eee'}]}>
+                  <Text>Sin foto</Text>
+                </View>
+              )}
               <View style={styles.info}>
                 <Text style={styles.name}>
-                  {user.name}, {user.age}
+                  {user.name}{user.age ? `, ${user.age}` : ''}
                 </Text>
-                <Text style={styles.carrera}>{user.carrera}</Text>
-                <Text style={styles.bio}>{user.bio}</Text>
+                {user.carrera && <Text style={styles.carrera}>{user.carrera}</Text>}
+                {user.bio && <Text style={styles.bio}>{user.bio}</Text>}
               </View>
             </View>
           ) : null

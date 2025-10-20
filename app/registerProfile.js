@@ -5,9 +5,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Alert,
 } from "react-native";
+import globalStyles from "./styles";
 import { Picker } from "@react-native-picker/picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -78,18 +78,18 @@ export default function RegisterProfile() {
 
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Completa tu información personal</Text>
+    <View style={globalStyles.container}>
+      <Text style={globalStyles.titleSmall}>Completa tu información personal</Text>
 
       <TextInput
-        style={styles.input}
+        style={globalStyles.input}
         placeholder="Nombre"
         value={name}
         onChangeText={setName}
       />
 
       <TextInput
-        style={styles.input}
+        style={globalStyles.input}
         placeholder="Edad"
         value={age}
         onChangeText={setAge}
@@ -97,14 +97,14 @@ export default function RegisterProfile() {
       />
 
       <TextInput
-        style={styles.input}
+        style={globalStyles.input}
         placeholder="Número de teléfono"
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
       />
 
-      <View style={styles.pickerContainer}>
+      <View style={globalStyles.pickerWrapper}>
         <Picker
           selectedValue={gender}
           onValueChange={(value) => setGender(value)}
@@ -116,11 +116,11 @@ export default function RegisterProfile() {
       </View>
 
       <TouchableOpacity
-        style={styles.button}
+        style={globalStyles.button}
         onPress={handleSaveProfile}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
+        <Text style={globalStyles.buttonText}>
           {loading ? "Guardando..." : "Continuar"}
         </Text>
       </TouchableOpacity>
@@ -128,43 +128,4 @@ export default function RegisterProfile() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#F9FAFB",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: "white",
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    marginBottom: 16,
-    backgroundColor: "white",
-  },
-  button: {
-    backgroundColor: "#4D96FF",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-});
+

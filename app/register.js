@@ -4,9 +4,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Alert,
+  Image,
+  StyleSheet,
+  Platform,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import globalStyles, { COLORS } from "./styles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { Picker } from "@react-native-picker/picker"; // 👈 mantenerlo
@@ -60,97 +64,94 @@ export default function Register() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Crear Cuenta</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Contraseña"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <Text style={styles.label}>Tipo de usuario</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={userType}
-          onValueChange={(itemValue) => setUserType(itemValue)}
-          style={styles.picker}
-        >
-          <Picker.Item label="Con vivienda" value="user_w_housing" />
-          <Picker.Item label="Sin vivienda" value="user_wo_housing" />
-        </Picker>
+    <LinearGradient
+      colors={[COLORS.primary, COLORS.secondary]}
+      style={styles.gradientBackground}
+    >
+      <View style={styles.overlay}>
+        <Image
+          source={require("../assets/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+  <View style={styles.formContainer}>
+          <Text style={styles.title}>¿Aún no tienes cuenta? Regístrate</Text>
+          <TextInput
+            style={globalStyles.input}
+            placeholder="Email"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={globalStyles.input}
+            placeholder="Contraseña"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          <Text style={{ fontWeight: 'bold', color: COLORS.card }}>Tipo de usuario</Text>
+          <View style={globalStyles.pickerWrapper}>
+            <Picker
+              selectedValue={userType}
+              onValueChange={(itemValue) => setUserType(itemValue)}
+              style={globalStyles.picker}
+            >
+              <Picker.Item label="Con vivienda" value="user_w_housing" />
+              <Picker.Item label="Sin vivienda" value="user_wo_housing" />
+            </Picker>
+          </View>
+          <TouchableOpacity
+            style={globalStyles.button}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            <Text style={globalStyles.buttonText}>
+              {loading ? "Cargando..." : "Registrarse"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleRegister}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>
-          {loading ? "Cargando..." : "Registrarse"}
-        </Text>
-      </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
+
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradientBackground: {
     flex: 1,
     justifyContent: "center",
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  logo: {
+    width: 180,
+    height: 180,
+    marginBottom: 40,
+  },
+  formContainer: {
+    width: "100%",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 20,
     padding: 24,
-    backgroundColor: "#F9FAFB",
+    ...(Platform.OS === "web" ? { backdropFilter: "blur(10px)" } : {}),
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
-    marginBottom: 32,
+    color: COLORS.card,
     textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: "white",
-  },
-  label: {
-    marginBottom: 8,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    marginBottom: 16,
-    backgroundColor: "white",
-  },
-  picker: {
-    height: 50,
-    width: "100%",
-  },
-  button: {
-    backgroundColor: "#4D96FF",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
+    marginBottom: 24,
   },
 });
+
+
