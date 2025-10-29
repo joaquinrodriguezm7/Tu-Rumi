@@ -16,8 +16,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import axios from "axios";
 
-
-
 axios.defaults.baseURL = "https://turumiapi.onrender.com";
 axios.defaults.withCredentials = true;
 
@@ -49,6 +47,15 @@ export default function Login() {
   // Expo Go no soporta cookies nativas, así que devolvemos null siempre
   const getCsrfToken = async () => null;
 
+  // Función para obtener un valor de cookie por nombre (solo Web)
+  function getCookie(name) {
+    if (Platform.OS !== "web") return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return null;
+  }
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Debes ingresar email y contraseña");
@@ -57,41 +64,51 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const csrfToken = await getCsrfToken();
 
-      const res = await axios.post(
-        "/auth/login",
-        { email, password },
-        { headers: csrfToken ? { "x-csrf-token": csrfToken } : {} }
-      );
+      const res = await axios.post("/auth/login", { email, password }, { withCredentials: true });
 
       console.log("✅ Login correcto:", res.data);
 
-      let user = res.data.user || {};
-      const userId = user.id_user || user.id;
+      // 🧠 Extraemos usuario y tokens del backend
+      const { user, tokens } = res.data;
 
-      if (!user.name || !user.age || !user.gender || !user.phone_number) {
-        console.log("🔎 Obteniendo datos completos del usuario...");
-        const profileRes = await axios.get(`/user/${userId}`);
-        user = profileRes.data;
-        console.log("👀 Usuario completo:", user);
-      }
+      // 🔐 Obtener tokens desde cookies (solo web)
+      let accessToken = getCookie("accessToken");
+      let refreshToken = getCookie("refreshToken");
 
+      // Si vienen en el body (como hace tu compañero), usarlos
+      if (tokens?.accessToken) accessToken = tokens.accessToken;
+      if (tokens?.refreshToken) refreshToken = tokens.refreshToken;
+
+      console.log("🔑 Tokens recibidos:", { accessToken, refreshToken });
+
+      // Guardar usuario y tokens en AsyncStorage
       await AsyncStorage.setItem("user", JSON.stringify(user));
 
+      if (accessToken) {
+        await AsyncStorage.setItem("accessToken", accessToken);
+        console.log("💾 accessToken guardado en AsyncStorage");
+      } else {
+        console.warn("⚠️ No se recibió accessToken del backend");
+      }
+
+      if (refreshToken) {
+        await AsyncStorage.setItem("refreshToken", refreshToken);
+      }
+
+      // Verificar guardado (debug)
+      const savedToken = await AsyncStorage.getItem("accessToken");
+      console.log("🧩 accessToken verificado:", savedToken);
+
+      // Redirigir según campos requeridos
       const requiredFields = ["name", "age", "gender", "phone_number"];
       const missingFields = requiredFields.filter(
-        (f) =>
-          user[f] === null ||
-          user[f] === undefined ||
-          String(user[f]).trim() === ""
+        (f) => !user[f] || String(user[f]).trim() === ""
       );
 
       if (missingFields.length > 0) {
-        console.log("🧩 Faltan campos del perfil:", missingFields);
         router.replace("/registerProfile");
       } else {
-        console.log("💙 Perfil completo, yendo a matching...");
         router.replace("/(tabs)/matching");
       }
     } catch (error) {
@@ -139,10 +156,16 @@ export default function Login() {
             />
             <TouchableOpacity
               onPress={() => setShowPassword((prev) => !prev)}
-              style={{ position: "absolute", right: 10, top: -6, height: "100%", justifyContent: "center" }}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: -6,
+                height: "100%",
+                justifyContent: "center",
+              }}
             >
               <Icon
-                name={showPassword ? 'eye-off' : 'eye'}
+                name={showPassword ? "eye-off" : "eye"}
                 size={22}
                 color="#888"
               />
@@ -158,12 +181,17 @@ export default function Login() {
               {loading ? "Cargando..." : "Ingresar"}
             </Text>
           </TouchableOpacity>
-          <View style={{ alignItems: 'center', marginTop: 16 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 13, color: COLORS.card }}>
-              ¿Aún no tienes cuenta?{' '}
+          <View style={{ alignItems: "center", marginTop: 16 }}>
+            <Text
+              style={{ fontWeight: "bold", fontSize: 13, color: COLORS.card }}
+            >
+              ¿Aún no tienes cuenta?{" "}
               <Text
-                style={{ color: COLORS.card, textDecorationLine: 'underline' }}
-                onPress={() => router.replace('/register')}
+                style={{
+                  color: COLORS.card,
+                  textDecorationLine: "underline",
+                }}
+                onPress={() => router.replace("/register")}
               >
                 Regístrate
               </Text>
@@ -193,11 +221,12 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: "100%",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.25)", // translúcido
+    borderRadius: 20,
     padding: 24,
+    backdropFilter: "blur(10px)", // efecto blur en web
     shadowColor: "#000",
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 6,
   },
@@ -208,17 +237,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
   },
-
-  formContainer: {
-  width: "100%",
-  backgroundColor: "rgba(255,255,255,0.25)", // translúcido
-  borderRadius: 20,
-  padding: 24,
-  backdropFilter: "blur(10px)", // efecto blur en web
-  shadowColor: "#000",
-  shadowOpacity: 0.2,
-  shadowRadius: 10,
-  elevation: 6,
-},
-
 });

@@ -76,7 +76,7 @@ export default function Matching() {
           console.log("💚 LIKE:", likedUser.name);
 
           try {
-            const res = await createMatch(likedUser.id);
+            const res = await createMatch(likedUser.id_user || likedUser.id);
             console.log("✅ Match creado:", res);
           } catch (err) {
             console.error("❌ Error creando match:", err.response?.data || err.message);
