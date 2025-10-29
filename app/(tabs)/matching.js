@@ -10,6 +10,8 @@ import {
 import Swiper from "react-native-deck-swiper";
 import { ThumbsUp, ThumbsDown } from "lucide-react-native";
 import axios from "axios";
+import { createMatch } from "../../services/matchService";
+
 
 const { width } = Dimensions.get("window");
 
@@ -67,7 +69,19 @@ export default function Matching() {
         stackSize={2}
         backgroundColor={"#F9FAFB"}
         onSwipedLeft={(i) => console.log("❌ DISLIKE:", users[i]?.name)}
-        onSwipedRight={(i) => console.log("💚 LIKE:", users[i]?.name)}
+        onSwipedRight={async (i) => {
+          const likedUser = users[i];
+          if (!likedUser?.id_user) return console.warn("⚠️ Usuario sin ID, no se puede crear match");
+
+          console.log("💚 LIKE:", likedUser.name);
+
+          try {
+            const res = await createMatch(likedUser.id);
+            console.log("✅ Match creado:", res);
+          } catch (err) {
+            console.error("❌ Error creando match:", err.response?.data || err.message);
+          }
+        }}
         onSwipedAll={() => setShowEmpty(true)}
         overlayLabels={{
           left: {
