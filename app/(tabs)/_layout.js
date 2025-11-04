@@ -9,26 +9,35 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerTransparent: true,
         headerStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(10px)",
         },
         headerTitleAlign: "center",
-        headerTintColor: "#00C2C7",
+        headerTintColor: "#FFFFFF",
+        headerShadowVisible: false,
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "rgba(255, 255, 255, 0.2)",
           borderTopWidth: 0,
-          elevation: 4,
+          elevation: 0,
           height: 60,
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backdropFilter: "blur(10px)",
         },
-        tabBarActiveTintColor: "#00C2C7",
-        tabBarInactiveTintColor: "#6B7280",
-        // botón de ajustes arriba a la derecha
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "rgba(255, 255, 255, 0.6)",
+
+        // ⚙️ Botón de ajustes arriba a la derecha
         headerRight: () => (
           <TouchableOpacity
             style={{ marginRight: 16 }}
             onPress={() => router.push("/settings")}
           >
-            <Ionicons name="settings" size={24} color="#2E2E2E" />
+            <Ionicons name="settings" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         ),
       }}
@@ -36,7 +45,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Perfil",
+          title: "PERFIL",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),
@@ -45,10 +54,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="matching"
         options={{
-          title: "Match",
+          title: "MATCH",
           tabBarIcon: () => (
             <Image
-              source={require("../../assets/logo.png")} // tu logo original
+              source={require("../../assets/logo.png")}
               style={{
                 width: 32,
                 height: 32,
@@ -61,10 +70,19 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: "Chat",
+          title: "CHAT",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-ellipses" size={size} color={color} />
           ),
+        }}
+      />
+
+      {/* ⚙️ Pantalla Settings — sin icono en la barra */}
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null, // 👈 oculta el ícono del tab bar
+          title: "AJUSTES",
         }}
       />
     </Tabs>

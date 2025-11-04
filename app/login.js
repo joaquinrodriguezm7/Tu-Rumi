@@ -83,7 +83,14 @@ export default function Login() {
       console.log("🔑 Tokens recibidos:", { accessToken, refreshToken });
 
       // Guardar usuario y tokens en AsyncStorage
-      await AsyncStorage.setItem("user", JSON.stringify(user));
+      const userWithPhoto = {
+        ...user,
+        photo_url:
+        user.photo_url ||
+        "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
+      };
+
+      await AsyncStorage.setItem("user", JSON.stringify(userWithPhoto));
 
       if (accessToken) {
         await AsyncStorage.setItem("accessToken", accessToken);
@@ -109,6 +116,7 @@ export default function Login() {
       if (missingFields.length > 0) {
         router.replace("/registerProfile");
       } else {
+        
         router.replace("/(tabs)/matching");
       }
     } catch (error) {
