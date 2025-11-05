@@ -45,7 +45,7 @@ export const createMatch = async (targetUserId) => {
     });
 
     if (inverseMatch) {
-      console.log("🔁 Match inverso pendiente encontrado:", inverseMatch);
+      
 
       // 3️⃣ Confirmar el match (PUT /match)
       const body = { matchId: inverseMatch.id || inverseMatch.match_id, like: true };
@@ -56,7 +56,7 @@ export const createMatch = async (targetUserId) => {
         },
         withCredentials: true,
       };
-      const resUpdate = await axios.put("/match", body, configPut);
+      const resUpdate = await axios.post("/match", body, configPut);
       console.log("🎉 Match confirmado:", resUpdate.data);
       return { matched: true, match: resUpdate.data.match };
     }
@@ -80,7 +80,7 @@ export const createMatch = async (targetUserId) => {
 
     // 5️⃣ Crear nuevo match (POST /match)
     console.log("🆕 No hay match inverso, creando uno nuevo (pending)...");
-    const body = { targetUserId: targetId };
+    const body = { targetUserId: targetId, like: true };
     const configPost = {
       headers: {
         accesstoken: token,

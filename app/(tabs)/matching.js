@@ -7,6 +7,7 @@ import {
   Dimensions,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Swiper from "react-native-deck-swiper";
@@ -32,9 +33,11 @@ export default function Matching() {
           headers: { accesstoken: token },
           withCredentials: true,
         };
+
+        // ✅ ahora ya incluye las imágenes en la respuesta
         const res = await axios.get("https://turumiapi.onrender.com/user/allusers", config);
-        console.log("Usuarios recibidos:", res.data); // <-- Aquí ves los usuarios en consola
-        setUsers(res.data.users);
+        console.log("Usuarios recibidos:", res.data);
+        setUsers(res.data.users || []);
       } catch (err) {
         console.error("Error al obtener usuarios:", err);
         setUsers([]);
@@ -47,27 +50,17 @@ export default function Matching() {
 
   const handleLike = async (index) => {
     const likedUser = users[index];
-    if (!likedUser?.id_user && !likedUser?.id) return console.warn("⚠️ Usuario sin ID");
+    if (!likedUser?.id_user && !likedUser?.id)
+      return console.warn("⚠️ Usuario sin ID");
 
     console.log("💚 LIKE:", likedUser.name);
-    console.log("🧭 targetUserId enviado:", likedUser.id_user);
-
 
     try {
       const res = await createMatch(likedUser.id_user || likedUser.id);
-      if (res.matched) {
-        console.log("🎉 ¡Match! Ahora están emparejados:", res.match);
-      } else {
-        console.log("⏳ Match pendiente, esperando reciprocidad:", res.match);
-      }
+      console.log("📬 Respuesta del match:", res);
     } catch (err) {
       if (err.response?.data?.message?.includes("Ya existe un Like o match")) {
-        // Mostrar alerta si ya existe un like o match
-        if (typeof Alert !== "undefined") {
-          Alert.alert("Ya existe un match", "Ya le diste like a este usuario o ya son match.");
-        } else {
-          console.warn("Ya existe un match: Ya le diste like a este usuario o ya son match.");
-        }
+        Alert.alert("Ya existe un match", "Ya le diste like a este usuario o ya son match.");
       } else {
         console.error("❌ Error creando match:", err.response?.data || err.message);
       }
@@ -81,7 +74,10 @@ export default function Matching() {
 
   if (loading) {
     return (
-      <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
+      <LinearGradient
+        colors={[COLORS.primary, COLORS.secondary]}
+        style={styles.gradientBackground}
+      >
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#fff" />
           <Text style={{ marginTop: 16, color: "#fff" }}>Cargando usuarios...</Text>
@@ -91,7 +87,10 @@ export default function Matching() {
   }
 
   return (
-    <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
+    <LinearGradient
+      colors={[COLORS.primary, COLORS.secondary]}
+      style={styles.gradientBackground}
+    >
       <View style={styles.container}>
         <Swiper
           ref={swiperRef}
@@ -101,7 +100,10 @@ export default function Matching() {
               <View style={styles.card}>
                 <Image
                   source={{
-                    uri: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
+                    uri:
+                      user.images && user.images.length > 0
+                        ? user.images[0]
+                        : "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
                   }}
                   style={styles.image}
                 />
@@ -110,7 +112,9 @@ export default function Matching() {
                     {user.name}
                     {user.age ? `, ${user.age}` : ""}
                   </Text>
-                  {user.carrera && <Text style={styles.carrera}>{user.carrera}</Text>}
+                  {user.carrera && (
+                    <Text style={styles.carrera}>{user.carrera}</Text>
+                  )}
                   {user.bio && <Text style={styles.bio}>{user.bio}</Text>}
                 </View>
               </View>
@@ -126,7 +130,6 @@ export default function Matching() {
         {/* ✅ Botones físicos debajo del card */}
         {!showEmpty && (
           <View style={styles.buttonsContainer}>
-            {/* ✅ Like (izquierda, verde) */}
             <TouchableOpacity
               style={[styles.button, styles.likeButton]}
               onPress={() => swiperRef.current.swipeRight()}
@@ -134,7 +137,6 @@ export default function Matching() {
               <Check size={48} strokeWidth={3.5} color="#00C853" />
             </TouchableOpacity>
 
-            {/* ❌ Dislike (derecha, rojo) */}
             <TouchableOpacity
               style={[styles.button, styles.dislikeButton]}
               onPress={() => swiperRef.current.swipeLeft()}
@@ -187,8 +189,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, fontWeight: "bold", marginBottom: 6, color: "#111" },
   carrera: { fontSize: 18, color: COLORS.primary, marginBottom: 6 },
   bio: { fontSize: 16, color: "#6B7280" },
-
-  // ✅ Botones de acción
   buttonsContainer: {
     flexDirection: "row",
     justifyContent: "space-evenly",
@@ -215,8 +215,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#FF4C4C",
   },
-
-
   emptyContainer: {
     position: "absolute",
     bottom: 40,

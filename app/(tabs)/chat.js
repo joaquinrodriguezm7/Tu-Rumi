@@ -11,20 +11,25 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getMatches } from "../../services/matchService";
 import { COLORS } from "../styles";
 
-const getUserById = async (id) => {
+// Función para obtener los matches del usuario
+const getMatches = async () => {
   try {
     const token = await AsyncStorage.getItem("accessToken");
-    const res = await axios.get(`https://turumiapi.onrender.com/user/${id}`, {
+    if (!token) throw new Error("No se encontró accessToken en AsyncStorage");
+
+    const config = {
       headers: { accesstoken: token },
       withCredentials: true,
-    });
+    };
+
+    const res = await axios.get("https://turumiapi.onrender.com/match", config);
+    console.log("📬 Matches recibidos:", res.data);
     return res.data;
   } catch (err) {
-    console.error(`❌ Error obteniendo usuario ${id}:`, err.response?.data || err.message);
-    return null;
+    console.error("❌ Error al obtener matches:", err.response?.data || err.message);
+    throw err;
   }
 };
 
@@ -32,37 +37,27 @@ export default function Chat() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Función para cargar los matches
   const fetchMatches = async () => {
     try {
       const data = await getMatches();
       const allMatches = data.matches || [];
+
+      // Filtrar los matches con status "matched"
       const confirmed = allMatches.filter((m) => m.match_status === "matched");
 
-      const enriched = await Promise.all(
-        confirmed.map(async (m) => {
-          const currentUser = await AsyncStorage.getItem("user");
-          const currentId = currentUser ? JSON.parse(currentUser).id_user : null;
-
-          const isFromUser = m.from_id_user === currentId;
-          const otherUserId = isFromUser ? m.to_id_user : m.from_id_user;
-
-          const user = await getUserById(otherUserId);
-          return { ...m, user };
-        })
-      );
-
-      setMatches(enriched);
+      setMatches(confirmed); // Guardar solo los matches confirmados
     } catch (err) {
       console.error("Error cargando matches:", err);
     } finally {
-      setLoading(false);
+      setLoading(false); // Terminar el estado de carga
     }
   };
 
   useEffect(() => {
     fetchMatches();
-    const interval = setInterval(fetchMatches, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchMatches, 5000); // Actualizar cada 5 segundos
+    return () => clearInterval(interval); // Limpiar el intervalo cuando el componente se desmonte
   }, []);
 
   if (loading) {
@@ -99,15 +94,15 @@ export default function Chat() {
               <Image
                 source={{
                   uri:
-                    item.user?.photo_url ||
-                    "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
+                    item.photo_url ||
+                    "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg", // Imagen por defecto si no hay foto
                 }}
                 style={styles.image}
               />
               <View style={styles.infoBox}>
                 <Text style={styles.name} numberOfLines={1}>
-                  {item.user?.name
-                    ? `${item.user.name.split(" ")[0]}, ${item.user.age || "?"}`
+                  {item.name
+                    ? `${item.name.split(" ")[0]}, ${item.age || "?"}`
                     : "Usuario"}
                 </Text>
               </View>
