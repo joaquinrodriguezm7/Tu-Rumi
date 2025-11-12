@@ -12,7 +12,7 @@ import {
   Modal,
   Alert,
   Platform,
-  FlatList, // 🆕 para mostrar las vistas previas
+  FlatList,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +20,7 @@ import { COLORS } from "../styles";
 import { Entypo, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
+import { Picker } from "@react-native-picker/picker";
 
 const { width, height } = Dimensions.get("window");
 
@@ -29,13 +30,33 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [photos, setPhotos] = useState([]); // 🖼️ lista de fotos del usuario
-  const [photoIndex, setPhotoIndex] = useState(0); // 📸 índice actual
+  const [photos, setPhotos] = useState([]);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
-  // 🆕 nuevos estados para manejar el modal de fotos
+  // Modales
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
-  const [selectedImages, setSelectedImages] = useState([]); // 🆕 imágenes elegidas para subir
-  const [uploading, setUploading] = useState(false); // 🆕 estado de carga
+  const [prefModalVisible, setPrefModalVisible] = useState(false);
+
+  // Preferencias
+  const [preferences, setPreferences] = useState({
+    smoker: "",
+    drinker: "",
+    pets: "",
+    lifestyle_schedule: "",
+    occupation: "",
+    sociability: "",
+    preferred_gender: "",
+    min_age: 18,
+    max_age: 40,
+    min_rent: 100000,
+    max_rent: 500000,
+    min_km_radius: 0,
+    max_km_radius: 20,
+  });
+
+  // Fotos
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -47,7 +68,6 @@ export default function Profile() {
           setEmail(parsedUser.email || "");
           setPhone(parsedUser.phone_number || parsedUser.telefono || "");
 
-          // 🧠 obtener fotos desde el endpoint
           const token = await AsyncStorage.getItem("accessToken");
           const res = await axios.get("https://turumiapi.onrender.com/user_photos", {
             headers: { accesstoken: token },
@@ -95,7 +115,6 @@ export default function Profile() {
     }
   };
 
-  // 🆕 seleccionar fotos antes de subir
   const handleSelectPhotos = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -111,14 +130,13 @@ export default function Profile() {
 
       if (!result.canceled) {
         const assets = result.assets || [result];
-        setSelectedImages(assets.map((a) => a.uri)); // guardar las URI seleccionadas
+        setSelectedImages(assets.map((a) => a.uri));
       }
     } catch (err) {
       console.error("❌ Error al seleccionar fotos:", err.message);
     }
   };
 
-  // 📸 función para subir fotos nuevas (ahora usando selectedImages)
   const handleUploadPhoto = async () => {
     try {
       if (selectedImages.length === 0) {
@@ -127,11 +145,10 @@ export default function Profile() {
 
       setUploading(true);
       const token = await AsyncStorage.getItem("accessToken");
-      const csrf = await AsyncStorage.getItem("csrfToken"); // 🔐 token CSRF guardado al iniciar sesión
+      const csrf = await AsyncStorage.getItem("csrfToken");
       if (!token) return Alert.alert("Error", "No se encontró el token.");
 
       const formData = new FormData();
-
       for (const uri of selectedImages) {
         if (Platform.OS === "web") {
           const response = await fetch(uri);
@@ -142,15 +159,9 @@ export default function Profile() {
         } else {
           const fileName = uri.split("/").pop();
           const fileType = "image/jpeg";
-          formData.append("images", {
-            uri,
-            name: fileName,
-            type: fileType,
-          });
+          formData.append("images", { uri, name: fileName, type: fileType });
         }
       }
-
-      console.log("📤 Subiendo fotos...", formData);
 
       const res = await axios.post(
         "https://turumiapi.onrender.com/user_photos/upload",
@@ -159,20 +170,18 @@ export default function Profile() {
           headers: {
             "Content-Type": "multipart/form-data",
             accesstoken: token,
-            "x-csrf-token": csrf, // ✅ agregado para pasar validación del backend
+            "x-csrf-token": csrf,
           },
           withCredentials: true,
         }
       );
 
-      console.log("📸 Respuesta backend:", res.data);
-
       if (res.data?.images?.length > 0) {
         const nuevas = res.data.images.map((img) => img.url);
-        setPhotos((prev) => [...prev, ...nuevas]); // 🆕 actualiza sin recargar
-        setPhotoIndex(photos.length); // 🆕 mostrar la nueva foto inmediatamente
+        setPhotos((prev) => [...prev, ...nuevas]);
+        setPhotoIndex(photos.length);
         setSelectedImages([]);
-        setPhotoModalVisible(false); // 🆕 cerrar el modal tras subir
+        setPhotoModalVisible(false);
         Alert.alert("✅ Éxito", "Fotos subidas correctamente");
       } else {
         Alert.alert("⚠️ Aviso", "No se recibieron imágenes en la respuesta");
@@ -185,17 +194,12 @@ export default function Profile() {
     }
   };
 
-  // 🔄 Navegación entre fotos
   const nextPhoto = () => {
-    if (photos.length > 0) {
-      setPhotoIndex((prev) => (prev + 1) % photos.length);
-    }
+    if (photos.length > 0) setPhotoIndex((prev) => (prev + 1) % photos.length);
   };
 
   const prevPhoto = () => {
-    if (photos.length > 0) {
-      setPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
-    }
+    if (photos.length > 0) setPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
 
   if (loading) {
@@ -222,7 +226,7 @@ export default function Profile() {
   return (
     <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ flex: 1 }}>
-        {/* 🖼️ Imagen de portada con navegación */}
+        {/* Imagen principal */}
         <TouchableOpacity style={styles.imageContainer} onPress={() => setPhotoModalVisible(true)}>
           {photos.length > 0 ? (
             <>
@@ -255,7 +259,7 @@ export default function Profile() {
           )}
         </TouchableOpacity>
 
-        {/* 🧾 Info del usuario */}
+        {/* Info usuario */}
         <View style={styles.infoSection}>
           <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
             <Feather name="edit-3" size={22} color="#444" />
@@ -263,6 +267,12 @@ export default function Profile() {
 
           <TouchableOpacity style={styles.photoButton} onPress={() => setPhotoModalVisible(true)}>
             <Feather name="camera" size={22} color="#444" />
+          </TouchableOpacity>
+
+          {/* 🆕 Botón de preferencias */}
+          <TouchableOpacity style={styles.prefButton} onPress={() => setPrefModalVisible(true)}>
+            <MaterialCommunityIcons name="tune" size={22} color="#444" />
+            <Text style={styles.prefText}>Preferencias</Text>
           </TouchableOpacity>
 
           <View style={styles.nameRow}>
@@ -287,12 +297,11 @@ export default function Profile() {
           </View>
         </View>
 
-        {/* ✏️ Modal de edición */}
+        {/* Modal editar info */}
         <Modal visible={editing} transparent animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Editar información</Text>
-
               <TextInput
                 style={styles.input}
                 placeholder="Correo electrónico"
@@ -320,7 +329,7 @@ export default function Profile() {
           </View>
         </Modal>
 
-        {/* 🆕 Modal de fotos */}
+        {/* Modal fotos */}
         <Modal visible={photoModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -367,6 +376,138 @@ export default function Profile() {
             </View>
           </View>
         </Modal>
+
+        {/* 🆕 Modal de preferencias mejorado */}
+{/* 🆕 Modal de preferencias con Pickers */}
+<Modal visible={prefModalVisible} transparent animationType="fade">
+  <View style={styles.modalOverlay}>
+    <View style={[styles.modalContent, { maxHeight: "80%" }]}>
+      <Text style={styles.modalTitle}>Preferencias</Text>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Smoker */}
+        <Text style={styles.label}>Fumador</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={preferences.smoker}
+            onValueChange={(itemValue) =>
+              setPreferences({ ...preferences, smoker: itemValue })
+            }
+          >
+            <Picker.Item label="Seleccionar..." value="" />
+            <Picker.Item label="Diario" value="Diario" />
+            <Picker.Item label="Ocasional" value="Ocasional" />
+            <Picker.Item label="No fumador" value="No fumador" />
+          </Picker>
+        </View>
+
+        {/* Drinker */}
+        <Text style={styles.label}>Bebedor</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={preferences.drinker}
+            onValueChange={(itemValue) =>
+              setPreferences({ ...preferences, drinker: itemValue })
+            }
+          >
+            <Picker.Item label="Seleccionar..." value="" />
+            <Picker.Item label="Diario" value="Diario" />
+            <Picker.Item label="Ocasional" value="Ocasional" />
+            <Picker.Item label="No bebedor" value="No bebedor" />
+          </Picker>
+        </View>
+
+        {/* Pets */}
+        <Text style={styles.label}>Mascotas</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={preferences.pets}
+            onValueChange={(itemValue) =>
+              setPreferences({ ...preferences, pets: itemValue })
+            }
+          >
+            <Picker.Item label="Seleccionar..." value="" />
+            <Picker.Item label="Sí" value={1} />
+            <Picker.Item label="No" value={0} />
+          </Picker>
+        </View>
+
+        {/* Lifestyle schedule */}
+        <Text style={styles.label}>Horario de vida</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={preferences.lifestyle_schedule}
+            onValueChange={(itemValue) =>
+              setPreferences({ ...preferences, lifestyle_schedule: itemValue })
+            }
+          >
+            <Picker.Item label="Seleccionar..." value="" />
+            <Picker.Item label="Diurno" value="Diurno" />
+            <Picker.Item label="Nocturno" value="Nocturno" />
+          </Picker>
+        </View>
+
+        {/* Occupation */}
+        <Text style={styles.label}>Ocupación</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ej: Ingeniero, Estudiante..."
+          placeholderTextColor="#aaa"
+          maxLength={25}
+          value={preferences.occupation}
+          onChangeText={(text) =>
+            setPreferences({ ...preferences, occupation: text })
+          }
+        />
+
+        {/* Sociability */}
+        <Text style={styles.label}>Sociabilidad</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={preferences.sociability}
+            onValueChange={(itemValue) =>
+              setPreferences({ ...preferences, sociability: itemValue })
+            }
+          >
+            <Picker.Item label="Seleccionar..." value="" />
+            <Picker.Item label="Extrovertido" value="Extrovertido" />
+            <Picker.Item label="Introvertido" value="Introvertido" />
+          </Picker>
+        </View>
+
+        {/* Preferred gender */}
+        <Text style={styles.label}>Género preferido</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={preferences.preferred_gender}
+            onValueChange={(itemValue) =>
+              setPreferences({ ...preferences, preferred_gender: itemValue })
+            }
+          >
+            <Picker.Item label="Seleccionar..." value="" />
+            <Picker.Item label="Masculino" value="Masculino" />
+            <Picker.Item label="Femenino" value="Femenino" />
+          </Picker>
+        </View>
+      </ScrollView>
+
+      <View style={styles.modalButtons}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={() => setPrefModalVisible(false)}
+        >
+          <Text style={styles.btnText}>Cancelar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.saveBtn}
+          onPress={() => setPrefModalVisible(false)}
+        >
+          <Text style={[styles.btnText, { color: "#fff" }]}>Guardar</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
       </ScrollView>
     </LinearGradient>
   );
@@ -402,7 +543,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
   },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.5)", marginHorizontal: 4 },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.5)",
+    marginHorizontal: 4,
+  },
   activeDot: { backgroundColor: "#fff" },
   infoSection: {
     backgroundColor: "#fff",
@@ -415,11 +562,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
     position: "relative",
-  },
-  scrollableInfoSection: {
-    backgroundColor: "#fff",
-    padding: 24,
-    marginTop: 10,
   },
   editButton: {
     position: "absolute",
@@ -441,6 +583,20 @@ const styles = StyleSheet.create({
     elevation: 3,
     zIndex: 9,
   },
+  prefButton: {
+    position: "absolute",
+    right: 20,
+    top: 100,
+    backgroundColor: "#F2F2F2",
+    padding: 8,
+    borderRadius: 50,
+    elevation: 3,
+    zIndex: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  prefText: { marginLeft: 6, fontSize: 15, color: "#444", fontWeight: "500" },
   nameRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   name: { fontSize: 28, fontWeight: "bold", color: "#222" },
   age: { fontSize: 26, color: "#444" },
@@ -453,7 +609,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContent: { backgroundColor: "#fff", width: "85%", borderRadius: 16, padding: 20 },
+  modalContent: {
+    backgroundColor: "#fff",
+    width: "85%",
+    borderRadius: 16,
+    padding: 20,
+  },
   modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 15, textAlign: "center" },
   input: {
     borderWidth: 1,
@@ -464,8 +625,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   modalButtons: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
-  cancelBtn: { paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "#EEE", borderRadius: 8 },
-  saveBtn: { paddingVertical: 10, paddingHorizontal: 20, backgroundColor: COLORS.primary, borderRadius: 8 },
+  cancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#EEE",
+    borderRadius: 8,
+  },
+  saveBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
   btnText: { fontWeight: "600", fontSize: 16 },
   addPhotoBtn: {
     flexDirection: "row",
@@ -476,7 +647,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addPhotoText: { color: "#fff", fontSize: 16, marginLeft: 8 },
-    addPhotoText: { color: "#fff", fontSize: 16, marginLeft: 8 },
   previewImage: { width: 100, height: 100, borderRadius: 10, marginRight: 8 },
   uploadBtn: {
     backgroundColor: COLORS.secondary,
@@ -492,4 +662,44 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
+
+label: {
+  fontWeight: "600",
+  color: "#333",
+  marginTop: 10,
+  marginBottom: 6,
+},
+pickerContainer: {
+  borderWidth: 1,
+  borderColor: "#ccc",
+  borderRadius: 8,
+  marginBottom: 10,
+  backgroundColor: "#fafafa",
+},
+
+dropdown: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  marginBottom: 10,
+},
+option: {
+  backgroundColor: "#f0f0f0",
+  borderRadius: 8,
+  paddingVertical: 8,
+  paddingHorizontal: 12,
+  marginRight: 8,
+  marginBottom: 8,
+},
+selectedOption: {
+  backgroundColor: COLORS.primary,
+},
+optionText: {
+  color: "#444",
+  fontWeight: "500",
+},
+optionTextSelected: {
+  color: "#fff",
+  fontWeight: "700",
+},
+
 });
