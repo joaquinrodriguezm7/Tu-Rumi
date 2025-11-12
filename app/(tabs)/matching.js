@@ -23,6 +23,7 @@ const { width, height } = Dimensions.get("window");
 
 export default function Matching() {
   const [users, setUsers] = useState([]);
+  const [myPhoto, setMyPhoto] = useState(null); // 🆕 tu foto real
   const [showEmpty, setShowEmpty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showHearts, setShowHearts] = useState(false);
@@ -34,26 +35,54 @@ export default function Matching() {
   const defaultPhoto =
     "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg";
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const token = await AsyncStorage.getItem("accessToken");
-        const config = {
-          headers: { accesstoken: token },
-          withCredentials: true,
-        };
-        const res = await axios.get("https://turumiapi.onrender.com/user/allusers", config);
-        setUsers(res.data.users || []);
-      } catch (err) {
-        console.error("Error al obtener usuarios:", err);
-        setUsers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
-  }, []);
+  // 🧠 Cargar usuarios y tu propia foto
+useEffect(() => {
+  const fetchUsersAndSelf = async () => {
+    try {
+      const token = await AsyncStorage.getItem("accessToken");
+      const config = {
+        headers: { accesstoken: token },
+        withCredentials: true,
+      };
 
+      // 👥 Obtener todos los usuarios disponibles
+      const res = await axios.get("https://turumiapi.onrender.com/user/allusers", config);
+      setUsers(res.data.users || []);
+
+      // 🧍‍♂️ Obtener tu propia foto
+      try {
+        const myRes = await axios.get("https://turumiapi.onrender.com/user_photos", config);
+        if (myRes.data?.images?.length > 0) {
+          setMyPhoto(myRes.data.images[0]);
+        } else {
+          console.log("ℹ️ Usuario sin fotos, usando foto de CR7 🐐");
+          setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
+        }
+      } catch (photoErr) {
+        if (photoErr.response?.status === 404) {
+          // ✅ Usuario sin fotos, usamos a CR7 como fallback
+          console.log("ℹ️ Usuario sin fotos registradas, usando CR7 🐐");
+          setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
+        } else {
+          // ❌ Otro tipo de error
+          console.error("❌ Error al obtener tus fotos:", photoErr.message);
+          setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
+        }
+      }
+    } catch (err) {
+      console.error("Error al obtener usuarios o foto propia:", err);
+      setUsers([]);
+      setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchUsersAndSelf();
+}, []);
+
+
+  // Animacion de match
   const triggerHearts = (user) => {
     setMatchedUser(user);
     setShowHearts(true);
@@ -63,7 +92,7 @@ export default function Matching() {
       id: Math.random().toString(),
       left: Math.random() * width,
       size: 24 + Math.random() * 20,
-      emoji: ["❤️", "💖", "💞"][Math.floor(Math.random() * 3)],
+      emoji: ["🏠", "🏡", "🏘️"][Math.floor(Math.random() * 3)], // 🏠 reemplazo
       anim: new Animated.Value(0),
     }));
 
@@ -184,7 +213,7 @@ export default function Matching() {
           </View>
         )}
 
-        {/* 💖 Animación de corazones */}
+        {/* 🏠 Animación de casitas */}
         {showHearts &&
           hearts.map((heart) => (
             <Animated.Text
@@ -219,21 +248,20 @@ export default function Matching() {
             </Animated.Text>
           ))}
 
-        {/* 💘 Modal tipo Tinder */}
+        {/* 🏡 Modal Match */}
         {showMatchModal && matchedUser && (
           <View style={styles.matchModalOverlay}>
             <View style={styles.matchModal}>
-              <Text style={styles.matchTitle}>¡Es un Match! 💘</Text>
+              <Text style={styles.matchTitle}>🏡¡Es un Match!🏡</Text>
               <View style={styles.matchPhotos}>
                 <Image
-                  source={{ uri: defaultPhoto }}
+                  source={{ uri: myPhoto || defaultPhoto }} // 🆕 tu foto real
                   style={styles.matchPhoto}
                 />
                 <Image
                   source={{
                     uri:
-                      matchedUser.images?.[0] ||
-                      defaultPhoto,
+                      matchedUser?.images?.[0] || defaultPhoto, // 🧩 protegido con optional chaining
                   }}
                   style={styles.matchPhoto}
                 />
@@ -290,17 +318,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyText: { fontSize: 18, color: "#fff" },
-  testButton: {
-    position: "absolute",
-    bottom: 60,
-    right: 20,
-    backgroundColor: "#fff",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    elevation: 5,
-  },
-  testButtonText: { color: COLORS.primary, fontWeight: "bold", fontSize: 16 },
   heart: {
     position: "absolute",
     top: 0,
