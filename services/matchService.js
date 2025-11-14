@@ -113,7 +113,6 @@ export const getMatches = async () => {
     };
 
     const res = await axios.get("/match", config);
-    console.log("📬 Matches recibidos:", res.data);
     return res.data;
   } catch (err) {
     console.error("❌ Error al obtener matches:", err.response?.data || err.message);

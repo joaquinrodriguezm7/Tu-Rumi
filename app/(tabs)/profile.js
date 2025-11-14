@@ -21,6 +21,7 @@ import { Entypo, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
+import Slider from "@react-native-community/slider";
 
 const { width, height } = Dimensions.get("window");
 
@@ -38,54 +39,77 @@ export default function Profile() {
   const [prefModalVisible, setPrefModalVisible] = useState(false);
 
   // Preferencias
-  const [preferences, setPreferences] = useState({
-    smoker: "",
-    drinker: "",
-    pets: "",
-    lifestyle_schedule: "",
-    occupation: "",
-    sociability: "",
-    preferred_gender: "",
-    min_age: 18,
-    max_age: 40,
-    min_rent: 100000,
-    max_rent: 500000,
-    min_km_radius: 0,
-    max_km_radius: 20,
-  });
+  const [preferences, setPreferences] = useState(false);
 
   // Fotos
   const [selectedImages, setSelectedImages] = useState([]);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem("user");
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-          setEmail(parsedUser.email || "");
-          setPhone(parsedUser.phone_number || parsedUser.telefono || "");
+useEffect(() => {
+  const loadUser = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setEmail(parsedUser.email || "");
+        setPhone(parsedUser.phone_number || parsedUser.telefono || "");
 
-          const token = await AsyncStorage.getItem("accessToken");
-          const res = await axios.get("https://turumiapi.onrender.com/user_photos", {
+        const token = await AsyncStorage.getItem("accessToken");
+
+        // ================================
+        // 📸 Cargar fotos del usuario
+        // ================================
+        const res = await axios.get(
+          "https://turumiapi.onrender.com/user_photos",
+          {
             headers: { accesstoken: token },
             withCredentials: true,
-          });
-
-          if (res.data?.images?.length > 0) {
-            setPhotos(res.data.images);
           }
+        );
+
+        if (res.data?.images?.length > 0) {
+          setPhotos(res.data.images);
         }
-      } catch (err) {
-        console.error("❌ Error cargando usuario o fotos:", err.message);
-      } finally {
-        setLoading(false);
+
+        // ================================
+        // 🎯 Cargar preferencias del usuario
+        // ================================
+        try {
+          const prefRes = await axios.get(
+            "https://turumiapi.onrender.com/preference",
+            {
+              headers: { accesstoken: token },
+              withCredentials: true,
+            }
+          );
+
+          // Si existen preferencias → cargarlas
+          if (prefRes.data?.id_preferences) {
+            setPreferences(prefRes.data);
+          }
+
+          // Si NO existen → dejar default pero marcar null
+          else {
+            setPreferences((prev) => ({
+              ...prev,
+              id_preferences: null,
+            }));
+          }
+        } catch (err) {
+          console.error("❌ Error cargando preferencias:", err.message);
+        }
       }
-    };
-    loadUser();
-  }, []);
+    } catch (err) {
+      console.error("❌ Error cargando usuario o fotos:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadUser();
+}, []);
+
 
   const handleSave = async () => {
     try {
@@ -137,6 +161,26 @@ export default function Profile() {
     }
   };
 
+  // Refresca las fotos desde el backend
+  const fetchPhotos = async () => {
+    try {
+      const token = await AsyncStorage.getItem("accessToken");
+      const res = await axios.get(
+        "https://turumiapi.onrender.com/user_photos",
+        {
+          headers: { accesstoken: token },
+          withCredentials: true,
+        }
+      );
+      if (res.data?.images?.length > 0) {
+        setPhotos(res.data.images);
+        setPhotoIndex(0);
+      }
+    } catch (err) {
+      console.error("❌ Error recargando fotos:", err.message);
+    }
+  };
+
   const handleUploadPhoto = async () => {
     try {
       if (selectedImages.length === 0) {
@@ -177,9 +221,8 @@ export default function Profile() {
       );
 
       if (res.data?.images?.length > 0) {
-        const nuevas = res.data.images.map((img) => img.url);
-        setPhotos((prev) => [...prev, ...nuevas]);
-        setPhotoIndex(photos.length);
+        // Después de subir, refresca la lista de fotos
+        await fetchPhotos();
         setSelectedImages([]);
         setPhotoModalVisible(false);
         Alert.alert("✅ Éxito", "Fotos subidas correctamente");
@@ -262,17 +305,16 @@ export default function Profile() {
         {/* Info usuario */}
         <View style={styles.infoSection}>
           <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
-            <Feather name="edit-3" size={22} color="#444" />
+            <Feather name="edit-3" size={22} color="white" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.photoButton} onPress={() => setPhotoModalVisible(true)}>
-            <Feather name="camera" size={22} color="#444" />
+            <Feather name="camera" size={22} color="white" />
           </TouchableOpacity>
 
           {/* 🆕 Botón de preferencias */}
           <TouchableOpacity style={styles.prefButton} onPress={() => setPrefModalVisible(true)}>
-            <MaterialCommunityIcons name="tune" size={22} color="#444" />
-            <Text style={styles.prefText}>Preferencias</Text>
+            <MaterialCommunityIcons name="tune" size={22} color="white" />
           </TouchableOpacity>
 
           <View style={styles.nameRow}>
@@ -377,141 +419,226 @@ export default function Profile() {
           </View>
         </Modal>
 
-        {/* 🆕 Modal de preferencias mejorado */}
-{/* 🆕 Modal de preferencias con Pickers */}
-<Modal visible={prefModalVisible} transparent animationType="fade">
-  <View style={styles.modalOverlay}>
-    <View style={[styles.modalContent, { maxHeight: "80%" }]}>
-      <Text style={styles.modalTitle}>Preferencias</Text>
+  {/* 🆕 Modal de preferencias (ACTUALIZADO CON SLIDERS) */}
+  <Modal visible={prefModalVisible} transparent animationType="fade">
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalContent, { maxHeight: "80%" }]}>
+        <Text style={styles.modalTitle}>Preferencias</Text>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Smoker */}
-        <Text style={styles.label}>Fumador</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={preferences.smoker}
-            onValueChange={(itemValue) =>
-              setPreferences({ ...preferences, smoker: itemValue })
+        <ScrollView showsVerticalScrollIndicator={false}>
+
+          {/* preferred_gender */}
+          <Text style={styles.label}>Género preferido</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={preferences.preferred_gender || ""}
+              onValueChange={(itemValue) =>
+                setPreferences({ ...preferences, preferred_gender: itemValue })
+              }
+            >
+              <Picker.Item label="Seleccionar..." value="" />
+              <Picker.Item label="Femenino" value="Femenino" />
+              <Picker.Item label="Masculino" value="Masculino" />
+              <Picker.Item label="Indistinto" value="Indistinto" />
+            </Picker>
+          </View>
+
+          {/* Edad mínima */}
+          <Text style={styles.label}>Edad mínima: {preferences.min_age}</Text>
+          <Slider
+            style={{ width: "100%", height: 40 }}
+            minimumValue={18}
+            maximumValue={100}
+            step={1}
+            value={preferences.min_age ?? 18}
+            minimumTrackTintColor={COLORS.primary}
+            maximumTrackTintColor="#ccc"
+            onValueChange={(val) =>
+              setPreferences({ ...preferences, min_age: Math.round(val) })
             }
-          >
-            <Picker.Item label="Seleccionar..." value="" />
-            <Picker.Item label="Diario" value="Diario" />
-            <Picker.Item label="Ocasional" value="Ocasional" />
-            <Picker.Item label="No fumador" value="No fumador" />
-          </Picker>
-        </View>
+          />
 
-        {/* Drinker */}
-        <Text style={styles.label}>Bebedor</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={preferences.drinker}
-            onValueChange={(itemValue) =>
-              setPreferences({ ...preferences, drinker: itemValue })
+          {/* Edad máxima */}
+          <Text style={styles.label}>Edad máxima: {preferences.max_age}</Text>
+          <Slider
+            style={{ width: "100%", height: 40 }}
+            minimumValue={18}
+            maximumValue={100}
+            step={1}
+            value={preferences.max_age ?? 40}
+            minimumTrackTintColor={COLORS.primary}
+            maximumTrackTintColor="#ccc"
+            onValueChange={(val) =>
+              setPreferences({ ...preferences, max_age: Math.round(val) })
             }
-          >
-            <Picker.Item label="Seleccionar..." value="" />
-            <Picker.Item label="Diario" value="Diario" />
-            <Picker.Item label="Ocasional" value="Ocasional" />
-            <Picker.Item label="No bebedor" value="No bebedor" />
-          </Picker>
-        </View>
+          />
 
-        {/* Pets */}
-        <Text style={styles.label}>Mascotas</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={preferences.pets}
-            onValueChange={(itemValue) =>
-              setPreferences({ ...preferences, pets: itemValue })
+          {/* Arriendo mínimo */}
+          <Text style={styles.label}>
+            Arriendo mínimo: ${preferences.min_rent?.toLocaleString("es-CL")}
+          </Text>
+          <Slider
+            style={{ width: "100%", height: 40 }}
+            minimumValue={0}
+            maximumValue={500000}
+            step={10000}
+            value={preferences.min_rent ?? 0}
+            minimumTrackTintColor={COLORS.primary}
+            maximumTrackTintColor="#ccc"
+            onValueChange={(val) =>
+              setPreferences({ ...preferences, min_rent: Math.round(val) })
             }
-          >
-            <Picker.Item label="Seleccionar..." value="" />
-            <Picker.Item label="Sí" value={1} />
-            <Picker.Item label="No" value={0} />
-          </Picker>
-        </View>
+          />
 
-        {/* Lifestyle schedule */}
-        <Text style={styles.label}>Horario de vida</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={preferences.lifestyle_schedule}
-            onValueChange={(itemValue) =>
-              setPreferences({ ...preferences, lifestyle_schedule: itemValue })
+          {/* Arriendo máximo */}
+          <Text style={styles.label}>
+            Arriendo máximo: ${preferences.max_rent?.toLocaleString("es-CL")}
+          </Text>
+          <Slider
+            style={{ width: "100%", height: 40 }}
+            minimumValue={0}
+            maximumValue={500000}
+            step={10000}
+            value={preferences.max_rent ?? 0}
+            minimumTrackTintColor={COLORS.primary}
+            maximumTrackTintColor="#ccc"
+            onValueChange={(val) =>
+              setPreferences({ ...preferences, max_rent: Math.round(val) })
             }
-          >
-            <Picker.Item label="Seleccionar..." value="" />
-            <Picker.Item label="Diurno" value="Diurno" />
-            <Picker.Item label="Nocturno" value="Nocturno" />
-          </Picker>
-        </View>
+          />
 
-        {/* Occupation */}
-        <Text style={styles.label}>Ocupación</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ej: Ingeniero, Estudiante..."
-          placeholderTextColor="#aaa"
-          maxLength={25}
-          value={preferences.occupation}
-          onChangeText={(text) =>
-            setPreferences({ ...preferences, occupation: text })
-          }
-        />
-
-        {/* Sociability */}
-        <Text style={styles.label}>Sociabilidad</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={preferences.sociability}
-            onValueChange={(itemValue) =>
-              setPreferences({ ...preferences, sociability: itemValue })
+          {/* Distancia mínima */}
+          <Text style={styles.label}>
+            Distancia mínima (km): {preferences.min_km_radius}
+          </Text>
+          <Slider
+            style={{ width: "100%", height: 40 }}
+            minimumValue={0}
+            maximumValue={180}
+            step={1}
+            value={preferences.min_km_radius ?? 1}
+            minimumTrackTintColor={COLORS.primary}
+            maximumTrackTintColor="#ccc"
+            onValueChange={(val) =>
+              setPreferences({
+                ...preferences,
+                min_km_radius: Math.round(val),
+              })
             }
-          >
-            <Picker.Item label="Seleccionar..." value="" />
-            <Picker.Item label="Extrovertido" value="Extrovertido" />
-            <Picker.Item label="Introvertido" value="Introvertido" />
-          </Picker>
-        </View>
+          />
 
-        {/* Preferred gender */}
-        <Text style={styles.label}>Género preferido</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={preferences.preferred_gender}
-            onValueChange={(itemValue) =>
-              setPreferences({ ...preferences, preferred_gender: itemValue })
+          {/* Distancia máxima */}
+          <Text style={styles.label}>
+            Distancia máxima (km): {preferences.max_km_radius}
+          </Text>
+          <Slider
+            style={{ width: "100%", height: 40 }}
+            minimumValue={0}
+            maximumValue={180}
+            step={1}
+            value={preferences.max_km_radius ?? 180}
+            minimumTrackTintColor={COLORS.primary}
+            maximumTrackTintColor="#ccc"
+            onValueChange={(val) =>
+              setPreferences({
+                ...preferences,
+                max_km_radius: Math.round(val),
+              })
             }
-          >
-            <Picker.Item label="Seleccionar..." value="" />
-            <Picker.Item label="Masculino" value="Masculino" />
-            <Picker.Item label="Femenino" value="Femenino" />
-          </Picker>
-        </View>
-      </ScrollView>
+          />
 
-      <View style={styles.modalButtons}>
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={() => setPrefModalVisible(false)}
-        >
-          <Text style={styles.btnText}>Cancelar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.saveBtn}
-          onPress={() => setPrefModalVisible(false)}
-        >
-          <Text style={[styles.btnText, { color: "#fff" }]}>Guardar</Text>
-        </TouchableOpacity>
+          {/* Región preferida */}
+          <Text style={styles.label}>Región preferida</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={preferences.preferred_region || ""}
+              onValueChange={(itemValue) =>
+                setPreferences({ ...preferences, preferred_region: itemValue })
+              }
+            >
+              <Picker.Item label="Seleccionar..." value="" />
+              <Picker.Item label="1" value={1} />
+              <Picker.Item label="2" value={2} />
+              <Picker.Item label="3" value={3} />
+              {/* Agrega todas las regiones que necesites */}
+            </Picker>
+          </View>
+
+        </ScrollView>
+
+        {/* BOTONES */}
+        <View style={styles.modalButtons}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={() => setPrefModalVisible(false)}
+          >
+            <Text style={styles.btnText}>Cancelar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.saveBtn}
+            onPress={async () => {
+              try {
+                const token = await AsyncStorage.getItem("accessToken");
+
+                const body = {
+                  preferred_gender: preferences.preferred_gender,
+                  min_age: preferences.min_age,
+                  max_age: preferences.max_age,
+                  min_rent: preferences.min_rent,
+                  max_rent: preferences.max_rent,
+                  min_km_radius: preferences.min_km_radius,
+                  max_km_radius: preferences.max_km_radius,
+                  preferred_region: preferences.preferred_region,
+                };
+
+                let res;
+
+                // POST si no existen
+                if (!preferences.id_preferences) {
+                  res = await axios.post(
+                    "https://turumiapi.onrender.com/preference",
+                    body,
+                    {
+                      headers: { accesstoken: token },
+                      withCredentials: true,
+                    }
+                  );
+                  console.log("🆕 Preferencias creadas:", res.data);
+                }
+
+                // PUT si existen
+                else {
+                  res = await axios.put(
+                    "https://turumiapi.onrender.com/preference",
+                    body,
+                    {
+                      headers: { accesstoken: token },
+                      withCredentials: true,
+                    }
+                  );
+                  console.log("♻ Preferencias actualizadas:", res.data);
+                }
+
+                Alert.alert("Éxito", "Preferencias guardadas correctamente");
+                setPrefModalVisible(false);
+
+              } catch (err) {
+                console.error("❌ Error al guardar preferencias:", err);
+                Alert.alert("Error", "No se pudo guardar las preferencias");
+              }
+            }}
+          >
+            <Text style={[styles.btnText, { color: "#fff" }]}>Guardar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
-  </View>
-</Modal>
-      </ScrollView>
-    </LinearGradient>
-  );
-}
+  </Modal>
+        </ScrollView>
+      </LinearGradient>
+    );
+  }
 
 const styles = StyleSheet.create({
   gradientBackground: { flex: 1 },
@@ -556,7 +683,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     marginTop: -30,
-    padding: 24,
+    padding: 25,
     shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -566,8 +693,8 @@ const styles = StyleSheet.create({
   editButton: {
     position: "absolute",
     right: 20,
-    top: 20,
-    backgroundColor: "#F2F2F2",
+    top: 30,
+    backgroundColor: COLORS.secondary,
     padding: 8,
     borderRadius: 50,
     elevation: 3,
@@ -576,8 +703,8 @@ const styles = StyleSheet.create({
   photoButton: {
     position: "absolute",
     right: 20,
-    top: 60,
-    backgroundColor: "#F2F2F2",
+    top: 75,
+    backgroundColor: COLORS.secondary,
     padding: 8,
     borderRadius: 50,
     elevation: 3,
@@ -586,8 +713,8 @@ const styles = StyleSheet.create({
   prefButton: {
     position: "absolute",
     right: 20,
-    top: 100,
-    backgroundColor: "#F2F2F2",
+    top: 120,
+    backgroundColor: COLORS.secondary,
     padding: 8,
     borderRadius: 50,
     elevation: 3,
@@ -634,15 +761,16 @@ const styles = StyleSheet.create({
   saveBtn: {
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     borderRadius: 8,
+
   },
   btnText: { fontWeight: "600", fontSize: 16 },
   addPhotoBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     padding: 10,
     borderRadius: 10,
   },

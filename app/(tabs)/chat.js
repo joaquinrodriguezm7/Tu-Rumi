@@ -25,7 +25,6 @@ const getMatches = async () => {
     };
 
     const res = await axios.get("https://turumiapi.onrender.com/match", config);
-    console.log("📬 Matches recibidos:", res.data);
     return res.data;
   } catch (err) {
     console.error("❌ Error al obtener matches:", err.response?.data || err.message);
