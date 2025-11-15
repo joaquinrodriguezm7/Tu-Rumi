@@ -45,6 +45,11 @@ export default function Profile() {
   const [selectedImages, setSelectedImages] = useState([]);
   const [uploading, setUploading] = useState(false);
 
+  // PROFILE INFO (nuevo modal)
+  const [profile, setProfile] = useState(null);  
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+
+
 useEffect(() => {
   const loadUser = async () => {
     try {
@@ -100,6 +105,30 @@ useEffect(() => {
           console.error("❌ Error cargando preferencias:", err.message);
         }
       }
+
+      // ================================
+      // 🧩 Cargar PROFILE del usuario
+      // ================================
+        try {
+
+          const token = await AsyncStorage.getItem("accessToken");
+          const profileRes = await axios.get(
+            "https://turumiapi.onrender.com/profile",
+            {
+              headers: { accesstoken: token },
+              withCredentials: true,
+            }
+          );
+
+          if (profileRes.data?.id_profile) {
+            setProfile(profileRes.data);
+          } else {
+            setProfile(null);
+          }
+        } catch (err) {
+          console.error("❌ Error cargando profile:", err.message);
+        }
+
     } catch (err) {
       console.error("❌ Error cargando usuario o fotos:", err.message);
     } finally {
@@ -109,35 +138,6 @@ useEffect(() => {
 
   loadUser();
 }, []);
-
-
-  const handleSave = async () => {
-    try {
-      const token = await AsyncStorage.getItem("accessToken");
-      if (!token) return Alert.alert("Error", "No se encontró el token");
-
-      const body = {
-        name: user.name,
-        age: user.age,
-        gender: user.gender || user.genero,
-        email: email,
-        phone_number: phone,
-      };
-
-      const res = await axios.put(`https://turumiapi.onrender.com/user/${user.id}`, body, {
-        headers: { accesstoken: token },
-        withCredentials: true,
-      });
-
-      console.log("✅ Usuario actualizado:", res.data);
-      setUser({ ...user, ...body });
-      setEditing(false);
-      Alert.alert("✅ Actualizado", "Tu usuario se ha actualizado correctamente");
-    } catch (err) {
-      console.error("❌ Error al actualizar usuario:", err.response?.data || err.message);
-      Alert.alert("Error", "No se pudo actualizar el usuario");
-    }
-  };
 
   const handleSelectPhotos = async () => {
     try {
@@ -304,7 +304,7 @@ useEffect(() => {
 
         {/* Info usuario */}
         <View style={styles.infoSection}>
-          <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
+          <TouchableOpacity style={styles.editButton} onPress={() => setProfileModalVisible(true)}>
             <Feather name="edit-3" size={22} color="white" />
           </TouchableOpacity>
 
@@ -339,37 +339,199 @@ useEffect(() => {
           </View>
         </View>
 
-        {/* Modal editar info */}
-        <Modal visible={editing} transparent animationType="fade">
+        {/* 🆕 Modal información del perfil */}
+        <Modal visible={profileModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Editar información</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Correo electrónico"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Teléfono"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="numeric"
-              />
+            <View style={[styles.modalContent, { maxHeight: "85%" }]}>
 
+              <Text style={styles.modalTitle}>Información de perfil</Text>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+
+                {/* DESCRIPTION */}
+                <Text style={styles.label}>Descripción</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Descripción breve"
+                  value={profile?.description || ""}
+                  onChangeText={(text) =>
+                    setProfile({ ...(profile || {}), description: text })
+                  }
+                />
+
+                {/* SMOKER */}
+                <Text style={styles.label}>Fumas?</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={profile?.smoker || ""}
+                    onValueChange={(val) =>
+                      setProfile({ ...(profile || {}), smoker: val })
+                    }
+                  >
+                    <Picker.Item label="Seleccionar..." value="" />
+                    <Picker.Item label="Sí" value="Si" />
+                    <Picker.Item label="No" value="No" />
+                    <Picker.Item label="Socialmente" value="Socialmente" />
+                  </Picker>
+                </View>
+
+                {/* DRINKER */}
+                <Text style={styles.label}>Bebes alcohol?</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={profile?.drinker || ""}
+                    onValueChange={(val) =>
+                      setProfile({ ...(profile || {}), drinker: val })
+                    }
+                  >
+                    <Picker.Item label="Seleccionar..." value="" />
+                    <Picker.Item label="No" value="No" />
+                    <Picker.Item label="Socialmente" value="Socialmente" />
+                    <Picker.Item label="Frecuentemente" value="Frecuentemente" />
+                  </Picker>
+                </View>
+
+                {/* PETS */}
+                <Text style={styles.label}>Mascotas (0 a 5)</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={profile?.pets ?? 0}
+                    onValueChange={(val) =>
+                      setProfile({ ...(profile || {}), pets: Number(val) })
+                    }
+                  >
+                    {[0,1,2,3,4,5].map((n) => (
+                      <Picker.Item key={n} label={String(n)} value={n} />
+                    ))}
+                  </Picker>
+                </View>
+
+                {/* LIFESTYLE */}
+                <Text style={styles.label}>Horario de vida</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={profile?.lifestyle_schedule || ""}
+                    onValueChange={(val) =>
+                      setProfile({ ...(profile || {}), lifestyle_schedule: val })
+                    }
+                  >
+                    <Picker.Item label="Seleccionar..." value="" />
+                    <Picker.Item label="Diurno" value="Diurno" />
+                    <Picker.Item label="Nocturno" value="Nocturno" />
+                  </Picker>
+                </View>
+
+                {/* OCCUPATION */}
+                <Text style={styles.label}>Ocupación</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej: Estudiante, Ingeniero..."
+                  value={profile?.occupation || ""}
+                  onChangeText={(text) =>
+                    setProfile({ ...(profile || {}), occupation: text })
+                  }
+                />
+
+                {/* SOCIABILITY */}
+                <Text style={styles.label}>Sociabilidad</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={profile?.sociability || ""}
+                    onValueChange={(val) =>
+                      setProfile({ ...(profile || {}), sociability: val })
+                    }
+                  >
+                    <Picker.Item label="Seleccionar..." value="" />
+                    <Picker.Item label="Introvertido" value="Introvertido" />
+                    <Picker.Item label="Extrovertido" value="Extrovertido" />
+                  </Picker>
+                </View>
+
+                {/* ID COMUNA */}
+              <Text style={styles.label}>Comuna</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={profile?.id_comuna || 1}
+                  onValueChange={(val) =>
+                    setProfile({ ...(profile || {}), id_comuna: Number(val) })
+                  }
+                >
+                  <Picker.Item label="1" value={1} />
+                  <Picker.Item label="2" value={2} />
+                  <Picker.Item label="3" value={3} />
+                  <Picker.Item label="4" value={4} />
+                  <Picker.Item label="5" value={5} />
+                </Picker>
+              </View>
+
+              </ScrollView>
+
+              {/* BOTONES */}
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditing(false)}>
+
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => setProfileModalVisible(false)}
+                >
                   <Text style={styles.btnText}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+
+                <TouchableOpacity
+                  style={styles.saveBtn}
+                  onPress={async () => {
+                    try {
+                      const token = await AsyncStorage.getItem("accessToken");
+                      const body = {
+                        id_user: user.id,
+                        description: profile?.description || "",
+                        smoker: profile?.smoker || null,
+                        drinker: profile?.drinker || null,
+                        pets: profile?.pets ?? null,
+                        lifestyle_schedule: profile?.lifestyle_schedule || null,
+                        occupation: profile?.occupation || null,
+                        sociability: profile?.sociability || null,
+                        id_comuna: Number(profile?.id_comuna) || 1
+                      };
+
+                      let res;
+
+                      if (!profile?.id_profile) {
+                        // POST
+                        res = await axios.post(
+                          "https://turumiapi.onrender.com/profile",
+                          body,
+                          { headers: { accesstoken: token }, withCredentials: true }
+                        );
+                      } else {
+                        // PUT
+                        res = await axios.put(
+                          "https://turumiapi.onrender.com/profile",
+                          { ...body, id_profile: profile.id_profile },
+                          { headers: { accesstoken: token }, withCredentials: true }
+                        );
+                      }
+
+                      console.log("Profile guardado:", res.data);
+
+                      setProfile(res.data);
+                      setProfileModalVisible(false);
+                      Alert.alert("Éxito", "Información guardada correctamente");
+
+                    } catch (err) {
+                      console.log("❌ Error guardando profile:", err.response?.data || err);
+                      Alert.alert("Error", "No se pudo guardar la información");
+                    }
+                  }}
+                >
                   <Text style={[styles.btnText, { color: "#fff" }]}>Guardar</Text>
                 </TouchableOpacity>
+
               </View>
+
             </View>
           </View>
         </Modal>
+
 
         {/* Modal fotos */}
         <Modal visible={photoModalVisible} transparent animationType="fade">
@@ -451,7 +613,7 @@ useEffect(() => {
             maximumValue={100}
             step={1}
             value={preferences.min_age ?? 18}
-            minimumTrackTintColor={COLORS.primary}
+            minimumTrackTintColor={COLORS.secondary}
             maximumTrackTintColor="#ccc"
             onValueChange={(val) =>
               setPreferences({ ...preferences, min_age: Math.round(val) })
@@ -466,7 +628,7 @@ useEffect(() => {
             maximumValue={100}
             step={1}
             value={preferences.max_age ?? 40}
-            minimumTrackTintColor={COLORS.primary}
+            minimumTrackTintColor={COLORS.secondary}
             maximumTrackTintColor="#ccc"
             onValueChange={(val) =>
               setPreferences({ ...preferences, max_age: Math.round(val) })
@@ -483,7 +645,7 @@ useEffect(() => {
             maximumValue={500000}
             step={10000}
             value={preferences.min_rent ?? 0}
-            minimumTrackTintColor={COLORS.primary}
+            minimumTrackTintColor={COLORS.secondary}
             maximumTrackTintColor="#ccc"
             onValueChange={(val) =>
               setPreferences({ ...preferences, min_rent: Math.round(val) })
@@ -500,7 +662,7 @@ useEffect(() => {
             maximumValue={500000}
             step={10000}
             value={preferences.max_rent ?? 0}
-            minimumTrackTintColor={COLORS.primary}
+            minimumTrackTintColor={COLORS.secondary}
             maximumTrackTintColor="#ccc"
             onValueChange={(val) =>
               setPreferences({ ...preferences, max_rent: Math.round(val) })
@@ -517,7 +679,7 @@ useEffect(() => {
             maximumValue={180}
             step={1}
             value={preferences.min_km_radius ?? 1}
-            minimumTrackTintColor={COLORS.primary}
+            minimumTrackTintColor={COLORS.secondary}
             maximumTrackTintColor="#ccc"
             onValueChange={(val) =>
               setPreferences({
@@ -537,7 +699,7 @@ useEffect(() => {
             maximumValue={180}
             step={1}
             value={preferences.max_km_radius ?? 180}
-            minimumTrackTintColor={COLORS.primary}
+            minimumTrackTintColor={COLORS.secondary}
             maximumTrackTintColor="#ccc"
             onValueChange={(val) =>
               setPreferences({
