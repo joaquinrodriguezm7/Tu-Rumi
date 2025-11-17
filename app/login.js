@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 180,
     height: 180,
-    marginBottom: 40,
+    marginBottom: 50,
   },
   formContainer: {
     width: "100%",
@@ -245,6 +245,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 6,
+    marginBottom: 140,
   },
   title: {
     fontSize: 26,

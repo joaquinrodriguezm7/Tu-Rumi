@@ -77,11 +77,22 @@ export default function TabsLayout() {
         }}
       />
 
+        <Tabs.Screen
+          name="chatroom"
+          options={{
+            href: null,
+            title: "CHAT",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="chatbubbles" size={size} color={color} />
+            ),
+          }}
+        />
+
       {/* ⚙️ Pantalla Settings — sin icono en la barra */}
       <Tabs.Screen
         name="settings"
         options={{
-          href: null, // 👈 oculta el ícono del tab bar
+          href: null,
           title: "AJUSTES",
         }}
       />

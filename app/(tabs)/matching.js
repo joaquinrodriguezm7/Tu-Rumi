@@ -96,7 +96,7 @@ export default function Matching() {
     if (!matchedUser || !myUserId) return;
 
     router.push({
-      pathname: "/chat/ChatRoom",
+      pathname: "/chatroom",
       params: {
         userId: myUserId,
         otherUserId: matchedUser.id_user || matchedUser.id,
