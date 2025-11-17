@@ -92,6 +92,14 @@ export default function Login() {
 
       await AsyncStorage.setItem("user", JSON.stringify(userWithPhoto));
 
+      // 🆕 Guardar el ID del usuario de forma segura
+      if (user?.id) {
+        await AsyncStorage.setItem("userId", String(user.id));
+        console.log("💾 userId guardado:", user.id);
+      } else {
+        console.warn("⚠️ No se encontró id_user en la respuesta del backend");
+      }
+
       if (accessToken) {
         await AsyncStorage.setItem("accessToken", accessToken);
         console.log("💾 accessToken guardado en AsyncStorage");

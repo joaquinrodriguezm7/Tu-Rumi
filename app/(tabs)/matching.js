@@ -18,12 +18,14 @@ import axios from "axios";
 import { createMatch } from "../../services/matchService";
 import { COLORS } from "../styles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";   // 🆕 Para navegar al chat
 
 const { width, height } = Dimensions.get("window");
 
 export default function Matching() {
   const [users, setUsers] = useState([]);
-  const [myPhoto, setMyPhoto] = useState(null); // 🆕 tu foto real
+  const [myPhoto, setMyPhoto] = useState(null);
+  const [myUserId, setMyUserId] = useState(null);   // 🆕 Tu ID real
   const [showEmpty, setShowEmpty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showHearts, setShowHearts] = useState(false);
@@ -32,57 +34,77 @@ export default function Matching() {
   const [matchedUser, setMatchedUser] = useState(null);
   const swiperRef = useRef(null);
 
+  const router = useRouter();  // 🆕
+
   const defaultPhoto =
     "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg";
 
-  // 🧠 Cargar usuarios y tu propia foto
-useEffect(() => {
-  const fetchUsersAndSelf = async () => {
-    try {
-      const token = await AsyncStorage.getItem("accessToken");
-      const config = {
-        headers: { accesstoken: token },
-        withCredentials: true,
-      };
+  // 🧠 Cargar tu userId + usuarios recomendados
+  useEffect(() => {
+    const loadMyData = async () => {
+      const storedId = await AsyncStorage.getItem("userId");
+      setMyUserId(Number(storedId));
+    };
+    loadMyData();
+  }, []);
 
-      // 👥 Obtener todos los usuarios disponibles
-      const res = await axios.get("https://turumiapi.onrender.com/user/allusers", config);
-      setUsers(res.data.users || []);
-
-      // 🧍‍♂️ Obtener tu propia foto
+  useEffect(() => {
+    const fetchUsersAndSelf = async () => {
       try {
-        const myRes = await axios.get("https://turumiapi.onrender.com/user_photos", config);
-        if (myRes.data?.images?.length > 0) {
-          setMyPhoto(myRes.data.images[0]);
-        } else {
-          console.log("ℹ️ Usuario sin fotos, usando foto de CR7 🐐");
-          setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
+        const token = await AsyncStorage.getItem("accessToken");
+        const config = {
+          headers: { accesstoken: token },
+          withCredentials: true,
+        };
+
+        // 👥 Obtener usuarios recomendados
+        const res = await axios.get(
+          "https://turumiapi.onrender.com/user/recommendations",
+          config
+        );
+        setUsers(res.data.recommendations || []);
+
+        // 🧍‍♂️ Obtener tu foto
+        try {
+          const myRes = await axios.get(
+            "https://turumiapi.onrender.com/user_photos",
+            config
+          );
+
+          if (myRes.data?.images?.length > 0) {
+            setMyPhoto(myRes.data.images[0]);
+          } else {
+            setMyPhoto(defaultPhoto);
+          }
+        } catch {
+          setMyPhoto(defaultPhoto);
         }
-      } catch (photoErr) {
-        if (photoErr.response?.status === 404) {
-          // ✅ Usuario sin fotos, usamos a CR7 como fallback
-          console.log("ℹ️ Usuario sin fotos registradas, usando CR7 🐐");
-          setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
-        } else {
-          // ❌ Otro tipo de error
-          console.error("❌ Error al obtener tus fotos:", photoErr.message);
-          setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
-        }
+      } catch (err) {
+        console.error("Error cargando datos:", err);
+        setUsers([]);
+        setMyPhoto(defaultPhoto);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error al obtener usuarios o foto propia:", err);
-      setUsers([]);
-      setMyPhoto("https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg");
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    fetchUsersAndSelf();
+  }, []);
+
+  // 🟩 Abre ChatRoom
+  const openChat = () => {
+    if (!matchedUser || !myUserId) return;
+
+    router.push({
+      pathname: "/chat/ChatRoom",
+      params: {
+        userId: myUserId,
+        otherUserId: matchedUser.id_user || matchedUser.id,
+      },
+    });
   };
 
-  fetchUsersAndSelf();
-}, []);
-
-
-  // Animacion de match
+  // 🏠 Animación de match
   const triggerHearts = (user) => {
     setMatchedUser(user);
     setShowHearts(true);
@@ -92,7 +114,7 @@ useEffect(() => {
       id: Math.random().toString(),
       left: Math.random() * width,
       size: 24 + Math.random() * 20,
-      emoji: ["🏠", "🏡", "🏘️"][Math.floor(Math.random() * 3)], // 🏠 reemplazo
+      emoji: ["🏠", "🏡", "🏘️"][Math.floor(Math.random() * 3)],
       anim: new Animated.Value(0),
     }));
 
@@ -111,34 +133,24 @@ useEffect(() => {
     setTimeout(() => setShowMatchModal(false), 4000);
   };
 
+  // 💚 LIKE
   const handleLike = async (index) => {
     const likedUser = users[index];
-    if (!likedUser?.id_user && !likedUser?.id) return console.warn("⚠️ Usuario sin ID");
-
-    console.log("💚 LIKE:", likedUser.name);
+    if (!likedUser?.id_user && !likedUser?.id) return;
 
     try {
       const res = await createMatch(likedUser.id_user || likedUser.id);
-      console.log("📬 Respuesta del match:", res);
 
-      // ✅ Solo mostrar animación si el estado del match es "matched"
       if (res?.match?.match_status === "matched") {
-        console.log("💘 ¡Match confirmado!");
         triggerHearts(likedUser);
       }
     } catch (err) {
-      if (err.response?.data?.message?.includes("Ya existe un Like o match")) {
-        Alert.alert("Ya existe un match", "Ya le diste like a este usuario o ya son match.");
-      } else {
-        console.error("❌ Error creando match:", err.response?.data || err.message);
-      }
+      console.error("❌ Error creando match:", err.response?.data || err.message);
     }
   };
 
-  const handleDislike = (index) => {
-    const dislikedUser = users[index];
-    console.log("❌ DISLIKE:", dislikedUser?.name);
-  };
+  // ❌ DISLIKE
+  const handleDislike = (index) => {};
 
   if (loading) {
     return (
@@ -163,10 +175,7 @@ useEffect(() => {
               <View style={styles.card}>
                 <Image
                   source={{
-                    uri:
-                      user.images && user.images.length > 0
-                        ? user.images[0]
-                        : defaultPhoto,
+                    uri: user.images?.[0] || defaultPhoto,
                   }}
                   style={styles.image}
                 />
@@ -188,7 +197,7 @@ useEffect(() => {
           onSwipedAll={() => setShowEmpty(true)}
         />
 
-        {/* ✅ Botones */}
+        {/* Botones */}
         {!showEmpty && (
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
@@ -204,12 +213,6 @@ useEffect(() => {
             >
               <X size={48} strokeWidth={3.5} color="#FF4C4C" />
             </TouchableOpacity>
-          </View>
-        )}
-
-        {showEmpty && (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>🚫 No hay más usuarios 🚫</Text>
           </View>
         )}
 
@@ -253,19 +256,21 @@ useEffect(() => {
           <View style={styles.matchModalOverlay}>
             <View style={styles.matchModal}>
               <Text style={styles.matchTitle}>🏡¡Es un Match!🏡</Text>
+
               <View style={styles.matchPhotos}>
-                <Image
-                  source={{ uri: myPhoto || defaultPhoto }} // 🆕 tu foto real
-                  style={styles.matchPhoto}
-                />
+                <Image source={{ uri: myPhoto || defaultPhoto }} style={styles.matchPhoto} />
                 <Image
                   source={{
-                    uri:
-                      matchedUser?.images?.[0] || defaultPhoto, // 🧩 protegido con optional chaining
+                    uri: matchedUser.images?.[0] || defaultPhoto,
                   }}
                   style={styles.matchPhoto}
                 />
               </View>
+
+              {/* 🆕 Botón para abrir Chat */}
+              <TouchableOpacity style={styles.chatButton} onPress={openChat}>
+                <Text style={styles.chatButtonText}>Enviar mensaje 💬</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -310,18 +315,7 @@ const styles = StyleSheet.create({
   },
   likeButton: { borderWidth: 2, borderColor: "#00C853" },
   dislikeButton: { borderWidth: 2, borderColor: "#FF4C4C" },
-  emptyContainer: {
-    position: "absolute",
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  emptyText: { fontSize: 18, color: "#fff" },
-  heart: {
-    position: "absolute",
-    top: 0,
-  },
+  heart: { position: "absolute", top: 0 },
   matchModalOverlay: {
     position: "absolute",
     top: 0,
@@ -341,17 +335,8 @@ const styles = StyleSheet.create({
     width: "80%",
     elevation: 8,
   },
-  matchTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: COLORS.primary,
-    marginBottom: 20,
-  },
-  matchPhotos: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  matchTitle: { fontSize: 28, fontWeight: "bold", color: COLORS.primary, marginBottom: 20 },
+  matchPhotos: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
   matchPhoto: {
     width: 110,
     height: 110,
@@ -359,5 +344,19 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderWidth: 3,
     borderColor: COLORS.primary,
+  },
+
+  // 🆕 Estilos botón chat
+  chatButton: {
+    marginTop: 20,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  chatButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });

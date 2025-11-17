@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS } from "../styles";
+import { useRouter } from "expo-router"; // 🆕 Para navegar al chat
 
 // Función para obtener los matches del usuario
 const getMatches = async () => {
@@ -35,6 +36,14 @@ const getMatches = async () => {
 export default function Chat() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myUserId, setMyUserId] = useState(null); // 🆕 tu ID real
+
+  const router = useRouter(); // 🆕
+
+  // Cargar mi userId
+  useEffect(() => {
+    AsyncStorage.getItem("userId").then((id) => setMyUserId(Number(id)));
+  }, []);
 
   // Función para cargar los matches
   const fetchMatches = async () => {
@@ -45,19 +54,45 @@ export default function Chat() {
       // Filtrar los matches con status "matched"
       const confirmed = allMatches.filter((m) => m.match_status === "matched");
 
-      setMatches(confirmed); // Guardar solo los matches confirmados
+      setMatches(confirmed);
     } catch (err) {
       console.error("Error cargando matches:", err);
     } finally {
-      setLoading(false); // Terminar el estado de carga
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchMatches();
-    const interval = setInterval(fetchMatches, 5000); // Actualizar cada 5 segundos
-    return () => clearInterval(interval); // Limpiar el intervalo cuando el componente se desmonte
+    const interval = setInterval(fetchMatches, 5000);
+    return () => clearInterval(interval);
   }, []);
+
+  const openChat = (match) => {
+    console.log("🔥 Ejecutado openChat()", match);
+    console.log("🔥 myUserId:", myUserId);
+
+    // Calcular bien el otro usuario
+    const otherId =
+      match.from_id_user === myUserId
+        ? match.to_id_user
+        : match.from_id_user;
+
+    console.log("🔥 otherUserId:", otherId);
+
+    // Validación
+    if (!myUserId || !otherId) {
+      console.log("❌ No hay myUserId o otherId");
+      return;
+    }
+
+    // Navegar al chat
+    router.push(
+      `/chatroom?userId=${myUserId}&otherUserId=${otherId}`
+    );
+  };
+
+
 
   if (loading) {
     return (
@@ -89,15 +124,20 @@ export default function Chat() {
           contentContainerStyle={styles.scrollContent}
         >
           {matches.map((item, index) => (
-            <TouchableOpacity key={index} style={styles.card}>
+            <TouchableOpacity
+              key={index}
+              style={styles.card}
+              onPress={() => openChat(item)} // 🟢 Abrir chat al tocar
+            >
               <Image
                 source={{
                   uri:
                     item.photo_url ||
-                    "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg", // Imagen por defecto si no hay foto
+                    "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
                 }}
                 style={styles.image}
               />
+
               <View style={styles.infoBox}>
                 <Text style={styles.name} numberOfLines={1}>
                   {item.name
@@ -138,7 +178,7 @@ const styles = StyleSheet.create({
   card: {
     width: 100,
     height: 160,
-    backgroundColor: "rgba(255,255,255,0.15)", // translúcido
+    backgroundColor: "rgba(255,255,255,0.15)",
     borderRadius: 10,
     overflow: "hidden",
     marginRight: 12,
@@ -156,7 +196,7 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     height: 45,
-    backgroundColor: "rgba(255,255,255,0.2)", // translúcido en la parte inferior
+    backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
     borderTopWidth: 0.5,

@@ -45,7 +45,7 @@ export default function Profile() {
   const [selectedImages, setSelectedImages] = useState([]);
   const [uploading, setUploading] = useState(false);
 
-  // PROFILE INFO (nuevo modal)
+  // Profile
   const [profile, setProfile] = useState(null);  
   const [profileModalVisible, setProfileModalVisible] = useState(false);
 
@@ -160,7 +160,7 @@ useEffect(() => {
       console.error("❌ Error al seleccionar fotos:", err.message);
     }
   };
-
+  
   // Refresca las fotos desde el backend
   const fetchPhotos = async () => {
     try {
