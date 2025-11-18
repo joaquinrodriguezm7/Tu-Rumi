@@ -79,8 +79,8 @@ export default function HousingPhoto() {
       setLoading(true);
 
       const token = await AsyncStorage.getItem("accessToken");
-      const csrfToken = await AsyncStorage.getItem("csrfToken");
-
+      const csrf = await AsyncStorage.getItem("csrfToken");
+      console.log("csrf_token: ", csrf);
       if (!token) {
         Alert.alert("Error", "No se encontró el token de acceso");
         return;
@@ -90,15 +90,23 @@ export default function HousingPhoto() {
 
       const formData = new FormData();
 
-      // 🆕 ESTRUCTURA IDÉNTICA A POSTMAN
-      // En Postman: Key="images", Value=File, Type=File
-      photos.forEach((photo) => {
-        formData.append("images", {
-          uri: photo.uri,
-          name: photo.name,
-          type: 'image/jpeg'
-        });
-      });
+      for (const photo of photos) {
+        if (Platform.OS === "web") {
+          const response = await fetch(photo.uri);
+          const blob = await response.blob();
+
+          const file = new File([blob], photo.name, { type: 'image/jpeg' });
+
+          formData.append("images", file);
+        } else {
+          formData.append("images", {
+            uri: photo.uri,
+            name: photo.name,
+            type: "image/jpeg",
+          });
+        }
+      }
+
 
       console.log("📤 FormData creado:", {
         key: "images",
@@ -109,18 +117,20 @@ export default function HousingPhoto() {
       // 🆕 HEADERS IDÉNTICOS A POSTMAN
       const headers = {
         'accesstoken': token,
-        'x-csrf-token': csrfToken || '',
-        // 🆕 NO incluir 'Content-Type': 'multipart/form-data' - axios lo hace automáticamente
       };
 
       console.log("📨 Headers:", headers);
 
+      for (const pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+      }
       // 🆕 PETICIÓN IDÉNTICA A POSTMAN
       const response = await axios.post(
         "https://turumiapi.onrender.com/housing_photos/upload", 
         formData, 
         {
           headers: headers,
+          withCredentials:true,
           // 🆕 NO withCredentials: true (Postman no lo usa por defecto)
           timeout: 30000,
         }
@@ -129,9 +139,8 @@ export default function HousingPhoto() {
       console.log("✅ Respuesta del servidor:", response.data);
 
       // 🆕 VERIFICAR RESPUESTA IDÉNTICA A POSTMAN
-      if (response.data && response.data.message === "Imagenes subida") {
+      if (response.data && response.data.code === "PHOTO_UPLOAD_SUCCESSFUL") {
         Alert.alert("Éxito", "Fotos subidas con éxito.");
-        // 🆕 Redirigir después de confirmar que todo salió bien
         setTimeout(() => {
           router.replace("/(tabs)/matching");
         }, 1500);
