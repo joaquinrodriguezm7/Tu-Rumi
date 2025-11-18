@@ -49,6 +49,20 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);  
   const [profileModalVisible, setProfileModalVisible] = useState(false);
 
+  // 🆕 Tabs y datos de vivienda
+  const [activeTab, setActiveTab] = useState('perfil'); // 'perfil' o 'casa'
+  const [housingData, setHousingData] = useState(null);
+  const [housingPhotos, setHousingPhotos] = useState([]);
+  const [housingLoading, setHousingLoading] = useState(false);
+  // Estado para índice de foto de vivienda
+  const [housingPhotoIndex, setHousingPhotoIndex] = useState(0);
+  // Funciones para navegar fotos de vivienda
+  const nextHousingPhoto = () => {
+    if (housingPhotos.length > 0) setHousingPhotoIndex((prev) => (prev + 1) % housingPhotos.length);
+  };
+  const prevHousingPhoto = () => {
+    if (housingPhotos.length > 0) setHousingPhotoIndex((prev) => (prev - 1 + housingPhotos.length) % housingPhotos.length);
+  };
 
 useEffect(() => {
   const loadUser = async () => {
@@ -138,6 +152,93 @@ useEffect(() => {
 
   loadUser();
 }, []);
+
+  // 🆕 Efecto para cargar datos de vivienda al montar el componente
+  useEffect(() => {
+    const loadHousingData = async () => {
+      try {
+        const token = await AsyncStorage.getItem("accessToken");
+        const housingRes = await axios.get(
+          "https://turumiapi.onrender.com/housing",
+          {
+            headers: { accesstoken: token },
+            withCredentials: true,
+          }
+        );
+
+        if (housingRes.data) {
+          setHousingData(housingRes.data);
+          
+          // 🆕 Cargar fotos de la vivienda si existe
+          const housingPhotosRes = await axios.get(
+            "https://turumiapi.onrender.com/housing_photos",
+            {
+              headers: { accesstoken: token },
+              withCredentials: true,
+            }
+          );
+
+          if (housingPhotosRes.data?.images?.length > 0) {
+            setHousingPhotos(housingPhotosRes.data.images);
+          }
+        }
+      } catch (err) {
+        console.error("❌ Error cargando datos de vivienda:", err.message);
+        // No mostrar alerta aquí para no molestar al usuario
+      }
+    };
+
+    loadHousingData();
+  }, []);
+
+  // 🆕 Función para cargar datos de vivienda
+  const fetchHousingData = async () => {
+    try {
+      setHousingLoading(true);
+      const token = await AsyncStorage.getItem("accessToken");
+
+      // Obtener datos de la vivienda
+      const housingRes = await axios.get(
+        "https://turumiapi.onrender.com/housing",
+        {
+          headers: { accesstoken: token },
+          withCredentials: true,
+        }
+      );
+
+      if (housingRes.data) {
+        setHousingData(housingRes.data);
+      }
+
+      // Obtener fotos de la vivienda
+      const housingPhotosRes = await axios.get(
+        "https://turumiapi.onrender.com/housing_photos",
+        {
+          headers: { accesstoken: token },
+          withCredentials: true,
+        }
+      );
+
+      if (housingPhotosRes.data?.images?.length > 0) {
+        setHousingPhotos(housingPhotosRes.data.images);
+      } else {
+        setHousingPhotos([]);
+      }
+
+    } catch (err) {
+      console.error("❌ Error cargando datos de vivienda:", err.message);
+      Alert.alert("Error", "No se pudieron cargar los datos de la vivienda");
+    } finally {
+      setHousingLoading(false);
+    }
+  };
+
+  // 🆕 Efecto para cargar datos de vivienda cuando se cambia al tab
+  useEffect(() => {
+    if (activeTab === 'casa' && !housingData) {
+      fetchHousingData();
+    }
+  }, [activeTab]);
 
   const handleSelectPhotos = async () => {
     try {
@@ -269,75 +370,182 @@ useEffect(() => {
   return (
     <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ flex: 1 }}>
-        {/* Imagen principal */}
-        <TouchableOpacity style={styles.imageContainer} onPress={() => setPhotoModalVisible(true)}>
-          {photos.length > 0 ? (
-            <>
-              <Image source={{ uri: photos[photoIndex] }} style={styles.coverPhoto} />
-
-              {photos.length > 1 && (
-                <>
-                  <TouchableOpacity style={styles.leftButton} onPress={prevPhoto}>
-                    <Entypo name="chevron-left" size={40} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.rightButton} onPress={nextPhoto}>
-                    <Entypo name="chevron-right" size={40} color="#fff" />
-                  </TouchableOpacity>
-
-                  <View style={styles.dotsContainer}>
-                    {photos.map((_, i) => (
-                      <View key={i} style={[styles.dot, i === photoIndex && styles.activeDot]} />
-                    ))}
-                  </View>
-                </>
-              )}
-            </>
-          ) : (
-            <Image
-              source={{
-                uri: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
-              }}
-              style={styles.coverPhoto}
-            />
+        
+        {/* 🆕 Tabs de navegación */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'perfil' && styles.activeTab]}
+            onPress={() => setActiveTab('perfil')}
+          >
+            <Text style={[styles.tabText, activeTab === 'perfil' && styles.activeTabText]}>
+              PERFIL
+            </Text>
+          </TouchableOpacity>
+          
+          {/* 🆕 Solo mostrar tab CASA si hay datos de vivienda */}
+          {housingData && (
+            <TouchableOpacity 
+              style={[styles.tab, activeTab === 'casa' && styles.activeTab]}
+              onPress={() => setActiveTab('casa')}
+            >
+              <Text style={[styles.tabText, activeTab === 'casa' && styles.activeTabText]}>
+                CASA
+              </Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-
-        {/* Info usuario */}
-        <View style={styles.infoSection}>
-          <TouchableOpacity style={styles.editButton} onPress={() => setProfileModalVisible(true)}>
-            <Feather name="edit-3" size={22} color="white" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.photoButton} onPress={() => setPhotoModalVisible(true)}>
-            <Feather name="camera" size={22} color="white" />
-          </TouchableOpacity>
-
-          {/* 🆕 Botón de preferencias */}
-          <TouchableOpacity style={styles.prefButton} onPress={() => setPrefModalVisible(true)}>
-            <MaterialCommunityIcons name="tune" size={22} color="white" />
-          </TouchableOpacity>
-
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{user.name}</Text>
-            {user.age && <Text style={styles.age}> {user.age}</Text>}
-            <MaterialCommunityIcons name="check-decagram" size={20} color="#3C8DFF" style={{ marginLeft: 4 }} />
-          </View>
-
-          <View style={styles.infoRow}>
-            <Entypo name="user" size={18} color="#444" style={styles.icon} />
-            <Text style={styles.infoText}>{user.gender || user.genero || "No especificado"}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Entypo name="phone" size={18} color="#444" style={styles.icon} />
-            <Text style={styles.infoText}>{phone || "No definido"}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Entypo name="mail" size={18} color="#444" style={styles.icon} />
-            <Text style={styles.infoText}>{email || "No definido"}</Text>
-          </View>
         </View>
+
+        {/* Contenido según tab activo */}
+        {activeTab === 'perfil' ? (
+          /* ========== CONTENIDO PERFIL ========== */
+          <>
+            {/* Imagen principal */}
+            <TouchableOpacity style={styles.imageContainer} onPress={() => setPhotoModalVisible(true)}>
+              {photos.length > 0 ? (
+                <>
+                  <Image source={{ uri: photos[photoIndex] }} style={styles.coverPhoto} />
+
+                  {photos.length > 1 && (
+                    <>
+                      <TouchableOpacity style={styles.leftButton} onPress={prevPhoto}>
+                        <Entypo name="chevron-left" size={40} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.rightButton} onPress={nextPhoto}>
+                        <Entypo name="chevron-right" size={40} color="#fff" />
+                      </TouchableOpacity>
+
+                      <View style={styles.dotsContainer}>
+                        {photos.map((_, i) => (
+                          <View key={i} style={[styles.dot, i === photoIndex && styles.activeDot]} />
+                        ))}
+                      </View>
+                    </>
+                  )}
+                </>
+              ) : (
+                <Image
+                  source={{
+                    uri: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg",
+                  }}
+                  style={styles.coverPhoto}
+                />
+              )}
+            </TouchableOpacity>
+
+            {/* Info usuario */}
+            <View style={styles.infoSection}>
+              <TouchableOpacity style={styles.editButton} onPress={() => setProfileModalVisible(true)}>
+                <Feather name="edit-3" size={22} color="white" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.photoButton} onPress={() => setPhotoModalVisible(true)}>
+                <Feather name="camera" size={22} color="white" />
+              </TouchableOpacity>
+
+              {/* 🆕 Botón de preferencias */}
+              <TouchableOpacity style={styles.prefButton} onPress={() => setPrefModalVisible(true)}>
+                <MaterialCommunityIcons name="tune" size={22} color="white" />
+              </TouchableOpacity>
+
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{user.name}</Text>
+                {user.age && <Text style={styles.age}> {user.age}</Text>}
+                <MaterialCommunityIcons name="check-decagram" size={20} color="#3C8DFF" style={{ marginLeft: 4 }} />
+              </View>
+
+              <View style={styles.infoRow}>
+                <Entypo name="user" size={18} color="#444" style={styles.icon} />
+                <Text style={styles.infoText}>{user.gender || user.genero || "No especificado"}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Entypo name="phone" size={18} color="#444" style={styles.icon} />
+                <Text style={styles.infoText}>{phone || "No definido"}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Entypo name="mail" size={18} color="#444" style={styles.icon} />
+                <Text style={styles.infoText}>{email || "No definido"}</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          /* ========== CONTENIDO CASA ========== */
+          <>
+            {housingLoading ? (
+              <View style={styles.center}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={[styles.loadingText, { color: "#fff" }]}>Cargando vivienda...</Text>
+              </View>
+            ) : housingData ? (
+              <>
+                {/* Imagen de la vivienda con navegación */}
+                <TouchableOpacity style={styles.imageContainer}>
+                  {housingPhotos.length > 0 ? (
+                    <>
+                      <Image source={{ uri: housingPhotos[housingPhotoIndex] }} style={styles.coverPhoto} />
+                      {housingPhotos.length > 1 && (
+                        <>
+                          <TouchableOpacity style={styles.leftButton} onPress={prevHousingPhoto}>
+                            <Entypo name="chevron-left" size={40} color="#fff" />
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.rightButton} onPress={nextHousingPhoto}>
+                            <Entypo name="chevron-right" size={40} color="#fff" />
+                          </TouchableOpacity>
+                          <View style={styles.dotsContainer}>
+                            {housingPhotos.map((_, i) => (
+                              <View key={i} style={[styles.dot, i === housingPhotoIndex && styles.activeDot]} />
+                            ))}
+                          </View>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <Image
+                      source={{
+                        uri: "https://placehold.co/400x300?text=Sin%20imagen",
+                      }}
+                      style={styles.coverPhoto}
+                    />
+                  )}
+                </TouchableOpacity>
+
+                {/* Información de la vivienda */}
+                <View style={styles.infoSection}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name}>Mi Vivienda</Text>
+                    <MaterialCommunityIcons name="home" size={24} color="#3C8DFF" style={{ marginLeft: 8 }} />
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Entypo name="location-pin" size={18} color="#444" style={styles.icon} />
+                    <Text style={styles.infoText}>
+                      {housingData.housing.address || "Dirección no especificada"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Entypo name="price-tag" size={18} color="#444" style={styles.icon} />
+                    <Text style={styles.infoText}>
+                      ${housingData.housing.rent?.toLocaleString("es-CL") || "No definido"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Entypo name="ruler" size={18} color="#444" style={styles.icon} />
+                    <Text style={styles.infoText}>
+                      {housingData.housing.size ? `${housingData.housing.size} m²` : "Tamaño no especificado"}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.center}>
+                <Text style={{ color: "#fff", fontSize: 16 }}>No hay datos de vivienda disponibles</Text>
+              </View>
+            )}
+          </>
+        )}
 
         {/* 🆕 Modal información del perfil */}
         <Modal visible={profileModalVisible} transparent animationType="fade">
@@ -806,7 +1014,36 @@ const styles = StyleSheet.create({
   gradientBackground: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 10 },
-  imageContainer: { width: "100%", height: height * 0.67, marginTop: 65 },
+  
+  // 🆕 Estilos para tabs
+  tabsContainer: {
+    flexDirection: 'row',
+    marginTop: 60,
+    marginHorizontal: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 12,
+    padding: 4,
+    zIndex: 10,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  activeTabText: {
+    color: COLORS.primary,
+  },
+  
+  imageContainer: { width: "100%", height: height * 0.67, marginTop: -48 },
   coverPhoto: { width: "100%", height: "100%", resizeMode: "cover" },
   leftButton: {
     position: "absolute",
