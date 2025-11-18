@@ -33,11 +33,11 @@ const getMatches = async () => {
 const getAllUsers = async () => {
   const token = await AsyncStorage.getItem("accessToken");
 
-  const res = await axios.get("https://turumiapi.onrender.com/user/allusers", {
+  const res = await axios.get("https://turumiapi.onrender.com/user/recommendations", {
     headers: { accesstoken: token },
   });
 
-  return res.data.users || [];
+  return res.data.recommendations || [];
 };
 
 export default function Chat() {

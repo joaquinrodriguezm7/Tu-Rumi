@@ -46,7 +46,7 @@ export default function ChatRoom() {
         }
 
         const res = await axios.get(
-          "https://turumiapi.onrender.com/user/allusers",
+          "https://turumiapi.onrender.com/user/recommendations",
           {
             headers: {
               accesstoken: token,
@@ -55,7 +55,7 @@ export default function ChatRoom() {
           }
         );
 
-        const users = res.data.users;
+        const users = res.data.recommendations;
 
         const me = users.find((u) => u.id_user === Number(userId));
         const other = users.find((u) => u.id_user === Number(otherUserId));

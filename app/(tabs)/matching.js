@@ -201,18 +201,19 @@ export default function Matching() {
         {!showEmpty && (
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
+              style={[styles.button, styles.dislikeButton]}
+              onPress={() => swiperRef.current.swipeLeft()}
+            >
+              <X size={48} strokeWidth={3.5} color="#FF4C4C" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.button, styles.likeButton]}
               onPress={() => swiperRef.current.swipeRight()}
             >
               <Check size={48} strokeWidth={3.5} color="#00C853" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.dislikeButton]}
-              onPress={() => swiperRef.current.swipeLeft()}
-            >
-              <X size={48} strokeWidth={3.5} color="#FF4C4C" />
-            </TouchableOpacity>
           </View>
         )}
 

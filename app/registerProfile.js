@@ -22,62 +22,77 @@ export default function RegisterProfile() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("Masculino");
-  const [phone, setPhone] = useState(""); // 👈 nuevo campo
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSaveProfile = async () => {
-  console.log("🟦 Botón presionado, intentando guardar perfil...");
+    console.log("🟦 Botón presionado, intentando guardar perfil...");
 
-  if (!name || !age || !gender || !phone) {
-    Alert.alert("Error", "Por favor completa todos los campos.");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const userData = await AsyncStorage.getItem("user");
-    if (!userData) {
-      Alert.alert("Error", "No se encontró información del usuario.");
+    if (!name || !age || !gender || !phone) {
+      Alert.alert("Error", "Por favor completa todos los campos.");
       return;
     }
 
-    const user = JSON.parse(userData);
-    const userId = user.id_user || user.id; // ✅ corregido
-    if (!userId) {
-      Alert.alert("Error", "El ID de usuario no es válido.");
-      return;
+    try {
+      setLoading(true);
+      const userData = await AsyncStorage.getItem("user");
+      if (!userData) {
+        Alert.alert("Error", "No se encontró información del usuario.");
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      const userId = user.id_user || user.id;
+
+      if (!userId) {
+        Alert.alert("Error", "El ID de usuario no es válido.");
+        return;
+      }
+
+      const payload = {
+        name,
+        age: Number(age),
+        gender,
+        phone_number: phone,
+      };
+
+      console.log("📦 Enviando payload:", payload);
+
+      const token = await AsyncStorage.getItem("accessToken");
+
+      const res = await axios.put(`/user`, payload, {
+        headers: {
+          accesstoken: token,
+        },
+        withCredentials: true,
+      });
+
+      console.log("✅ Respuesta del backend:", res.data);
+
+      if (res.status === 200) {
+        await AsyncStorage.setItem("profileCompleted", "true");
+        Alert.alert("Listo", "Información personal guardada con éxito.");
+
+        // 🟩 Redirección según tipo de usuario
+        if (user.user_type === "user_w_housing") {
+          console.log("➡️ Usuario con vivienda → enviando a /createHousing");
+          router.replace("/createHousing");
+        } else {
+          console.log("➡️ Usuario sin vivienda → enviando a /matching");
+          router.replace("/matching");
+        }
+      } else {
+        console.warn("⚠️ Código inesperado:", res.status);
+        Alert.alert("Error", "No se pudo guardar la información.");
+      }
+    } catch (error) {
+      console.error("❌ Error actualizando perfil:", error.response?.data || error.message);
+      Alert.alert("Error", error.response?.data?.message || "No se pudo actualizar el perfil.");
+    } finally {
+      setLoading(false);
     }
-
-    const payload = {
-      name,
-      age: Number(age),
-      gender,
-      phone_number: phone,
-    };
-
-    console.log("📦 Enviando payload:", payload);
-
-    const res = await axios.put(`/user/${userId}`, payload, { withCredentials: true });
-
-    console.log("✅ Respuesta del backend:", res.data);
-
-    if (res.status === 200) {
-      await AsyncStorage.setItem("profileCompleted", "true");
-      Alert.alert("Listo", "Información personal guardada con éxito.");
-      router.replace("/matching");
-    } else {
-      console.warn("⚠️ Código inesperado:", res.status);
-      Alert.alert("Error", "No se pudo guardar la información.");
-    }
-  } catch (error) {
-    console.error("❌ Error actualizando perfil:", error.response?.data || error.message);
-    Alert.alert("Error", error.response?.data?.message || "No se pudo actualizar el perfil.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
@@ -110,10 +125,7 @@ export default function RegisterProfile() {
         />
 
         <View style={globalStyles.pickerWrapper}>
-          <Picker
-            selectedValue={gender}
-            onValueChange={(value) => setGender(value)}
-          >
+          <Picker selectedValue={gender} onValueChange={(value) => setGender(value)}>
             <Picker.Item label="Masculino" value="Masculino" />
             <Picker.Item label="Femenino" value="Femenino" />
             <Picker.Item label="Otro" value="Otro" />
@@ -157,5 +169,3 @@ const styles = StyleSheet.create({
     color: "#FFF",
   },
 });
-
-
