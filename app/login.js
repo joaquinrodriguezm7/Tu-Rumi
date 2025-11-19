@@ -142,76 +142,129 @@ export default function Login() {
     <LinearGradient
       colors={[COLORS.primary, COLORS.secondary]}
       style={styles.gradientBackground}
+      start={{ x:0 , y:0}}
+      end={{ x:1, y:0 }}
     >
       <View style={styles.overlay}>
-        <Image
-          source={require("../assets/logo.png")} // 👈 coloca tu logo en /assets/logo.png
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <View style={styles.imageOverlay}>
+          <Image
+            source={require("../assets/logo_blanco.png")} // 👈 coloca tu logo en /assets/logo.png
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
 
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Iniciar Sesión</Text>
-
-          <TextInput
-            style={globalStyles.input}
-            placeholder="Email"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-
-          <View style={{ position: "relative" }}>
+          <View style={styles.form}>
+            <Text style={styles.title}>Iniciar Sesión</Text>
+            <Text style={styles.labelForm}>
+              Email
+            </Text>
             <TextInput
-              style={[globalStyles.input, { paddingRight: 36 }]}
-              placeholder="Contraseña"
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
+              style={[
+                    globalStyles.input,
+                    {
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#929292ff",
+                      borderRadius: 0,        // evita bordes redondeados
+                      borderWidth: 0,         // elimina otros bordes
+                      paddingRight: 36
+                    }
+                  ]}
+              placeholder="example@gmail.com"
+              placeholderTextColor="rgba(0,0,0,0.7)"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
             />
-            <TouchableOpacity
-              onPress={() => setShowPassword((prev) => !prev)}
-              style={{
-                position: "absolute",
-                right: 10,
-                top: -6,
-                height: "100%",
-                justifyContent: "center",
-              }}
-            >
-              <Icon
-                name={showPassword ? "eye-off" : "eye"}
-                size={22}
-                color="#888"
-              />
-            </TouchableOpacity>
-          </View>
 
-          <TouchableOpacity
-            style={globalStyles.button}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <Text style={globalStyles.buttonText}>
-              {loading ? "Cargando..." : "Ingresar"}
-            </Text>
-          </TouchableOpacity>
-          <View style={{ alignItems: "center", marginTop: 16 }}>
-            <Text
-              style={{ fontWeight: "bold", fontSize: 13, color: COLORS.card }}
-            >
-              ¿Aún no tienes cuenta?{" "}
+            <View style={{ marginTop: 12 }}>
               <Text
-                style={{
-                  color: COLORS.card,
-                  textDecorationLine: "underline",
-                }}
-                onPress={() => router.replace("/register")}
+                style={styles.labelForm}
               >
-                Regístrate
+                Contraseña
               </Text>
-            </Text>
+
+              {/* Contenedor sólo para input + icono */}
+              <View style={{ position: "relative", justifyContent: "center" }}>
+                <TextInput
+                  style={[
+                    globalStyles.input,
+                    {
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#929292ff",
+                      borderRadius: 0,
+                      borderWidth: 0,
+                      paddingRight: 40,   // deja espacio para el icono
+                    },
+                  ]}
+                  placeholder="Contraseña"
+                  placeholderTextColor="rgba(0,0,0,0.7)"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  style={{
+                    position: "absolute",
+                    right: 8,
+                    top: 0,
+                    bottom: 16,
+                    justifyContent: "center",
+                  }}
+                >
+                  <Icon
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={22}
+                    color="#888"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleLogin}
+              disabled={loading}
+              style={{ marginTop: 48 }}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  ...globalStyles.button,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderRadius: 12,
+                }}
+              >
+                <Text style={globalStyles.buttonText}>
+                  {loading ? "Cargando..." : "Ingresar"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <View style={{ alignItems: "center", marginTop: 16 }}>
+              <Text
+                style={{ fontWeight: "bold", fontSize: 13, color: "black", opacity: 0.75}}
+              >
+                ¿Aún no tienes cuenta?{" "}
+                <Text
+                  style={{
+                    color: "black",
+                    opacity: 0.9,
+                    textDecorationLine: "underline",
+                  }}
+                  onPress={() => router.replace("/register")}
+                >
+                  Regístrate
+                </Text>
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -226,32 +279,50 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
+    width: "100%"
   },
   logo: {
     width: 180,
     height: 180,
-    marginBottom: 50,
+  },
+  imageOverlay: {
+    width: "100%",
+    flex: 0.3,
+    justifyContent: "center",
+    alignItems: "center",   
   },
   formContainer: {
     width: "100%",
-    backgroundColor: "rgba(255,255,255,0.25)", // translúcido
+    flex: 0.7,
+    justifyContent: "flex-start",
+    backgroundColor: "#FFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 8,
+    borderTopLeftRadius:24,
+    borderTopRightRadius:24,
+  },
+  form: {
     borderRadius: 20,
     padding: 24,
-    backdropFilter: "blur(10px)", // efecto blur en web
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
     elevation: 6,
-    marginBottom: 140,
+    marginBottom: 24,
+    marginTop: 64,
+    marginHorizontal: 24,
+  },
+  labelForm: {
+    fontSize: 18, 
+    color: COLORS.primary, 
+    marginBottom: 8,
+    fontWeight: "600" 
   },
   title: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: "bold",
-    color: COLORS.card,
+    color: "#3C8DFF",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 48,
   },
 });

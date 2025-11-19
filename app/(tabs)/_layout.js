@@ -57,7 +57,7 @@ export default function TabsLayout() {
           title: "MATCH",
           tabBarIcon: () => (
             <Image
-              source={require("../../assets/logo.png")}
+              source={require("../../assets/logo_blanco.png")}
               style={{
                 width: 32,
                 height: 32,
