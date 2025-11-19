@@ -18,14 +18,14 @@ import axios from "axios";
 import { createMatch } from "../../services/matchService";
 import { COLORS } from "../styles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";   // 🆕 Para navegar al chat
+import { useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("window");
 
 export default function Matching() {
   const [users, setUsers] = useState([]);
   const [myPhoto, setMyPhoto] = useState(null);
-  const [myUserId, setMyUserId] = useState(null);   // 🆕 Tu ID real
+  const [myUserId, setMyUserId] = useState(null);
   const [showEmpty, setShowEmpty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showHearts, setShowHearts] = useState(false);
@@ -34,12 +34,24 @@ export default function Matching() {
   const [matchedUser, setMatchedUser] = useState(null);
   const swiperRef = useRef(null);
 
-  const router = useRouter();  // 🆕
+  // 🆕 Estados para tabs
+  const [activeTab, setActiveTab] = useState("perfil");
+  const [currentUserIndex, setCurrentUserIndex] = useState(0);
+  // 🆕 Estado para manejar índices de fotos por usuario
+  const [housingPhotoIndices, setHousingPhotoIndices] = useState({});
+  // 🆕 Estado para forzar re-mount del Swiper
+  const [swiperKey, setSwiperKey] = useState("swiper-0");
+
+  const router = useRouter();
 
   const defaultPhoto =
     "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg";
 
-  // 🧠 Cargar tu userId + usuarios recomendados
+  const forceSwiperRerender = () => {
+    setSwiperKey((prev) => prev + "-r");
+  };
+
+  // 🧠 Cargar tu userId
   useEffect(() => {
     const loadMyData = async () => {
       const storedId = await AsyncStorage.getItem("userId");
@@ -91,6 +103,60 @@ export default function Matching() {
     fetchUsersAndSelf();
   }, []);
 
+  // 🆕 Verificar si el usuario actual tiene vivienda
+  const currentUserHasHousing = () => {
+    if (users.length === 0) return false;
+    const currentUser = users[currentUserIndex];
+
+    return (
+      currentUser?.user_type === "user_with_housing" ||
+      currentUser?.id_housing !== null ||
+      currentUser?.housing_images?.length > 0
+    );
+  };
+
+  // 🆕 Obtener usuario actual
+  const getCurrentUser = () => {
+    return users[currentUserIndex] || null;
+  };
+
+  // 🆕 Navegación de fotos de vivienda - CORREGIDO
+  const nextHousingPhoto = () => {
+    const currentUser = getCurrentUser();
+    if (currentUser?.housing_images?.length > 0) {
+      const currentIndex = housingPhotoIndices[currentUser.id_user] || 0;
+      const newIndex =
+        (currentIndex + 1) % currentUser.housing_images.length;
+
+      setHousingPhotoIndices((prev) => ({
+        ...prev,
+        [currentUser.id_user]: newIndex,
+      }));
+    }
+  };
+
+  const prevHousingPhoto = () => {
+    const currentUser = getCurrentUser();
+    if (currentUser?.housing_images?.length > 0) {
+      const currentIndex = housingPhotoIndices[currentUser.id_user] || 0;
+      const newIndex =
+        (currentIndex - 1 + currentUser.housing_images.length) %
+        currentUser.housing_images.length;
+
+      setHousingPhotoIndices((prev) => ({
+        ...prev,
+        [currentUser.id_user]: newIndex,
+      }));
+    }
+  };
+
+  // 🆕 Obtener índice de foto actual para el usuario
+  const getCurrentHousingPhotoIndex = () => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return 0;
+    return housingPhotoIndices[currentUser.id_user] || 0;
+  };
+
   // 🟩 Abre ChatRoom
   const openChat = () => {
     if (!matchedUser || !myUserId) return;
@@ -136,64 +202,215 @@ export default function Matching() {
   // 💚 LIKE
   const handleLike = async (index) => {
     const likedUser = users[index];
-    if (!likedUser?.id_user && !likedUser?.id) return;
+    if (!likedUser?.id_user) return;
 
     try {
-      const res = await createMatch(likedUser.id_user || likedUser.id);
+      const res = await createMatch(likedUser.id_user);
 
       if (res?.match?.match_status === "matched") {
         triggerHearts(likedUser);
       }
     } catch (err) {
-      console.error("❌ Error creando match:", err.response?.data || err.message);
+      console.error(
+        "❌ Error creando match:",
+        err.response?.data || err.message
+      );
     }
   };
 
   // ❌ DISLIKE
-  const handleDislike = (index) => {};
+  const handleDislike = (index) => {
+    // No necesita hacer nada adicional
+  };
+
+  // 🆕 Manejar cambio de card en el swiper (sin usar index del callback)
+  const handleSwiped = () => {
+    setCurrentUserIndex((prev) => prev + 1);
+    setActiveTab("perfil");
+  };
 
   if (loading) {
     return (
-      <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
+      <LinearGradient
+        colors={[COLORS.primary, COLORS.secondary]}
+        style={styles.gradientBackground}
+      >
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ marginTop: 16, color: "#fff" }}>Cargando usuarios...</Text>
+          <Text style={{ marginTop: 16, color: "#fff" }}>
+            Cargando usuarios...
+          </Text>
         </View>
       </LinearGradient>
     );
   }
 
   return (
-    <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
+    <LinearGradient
+      colors={[COLORS.primary, COLORS.secondary]}
+      style={styles.gradientBackground}
+    >
       <View style={styles.container}>
-        {/* 💳 Swiper */}
         <Swiper
+          key={swiperKey}               // 👈 fuerza remount cuando cambia
+          cardIndex={currentUserIndex}  // 👈 controlamos el índice desde afuera
           ref={swiperRef}
           cards={users}
-          renderCard={(user) =>
-            user ? (
-              <View style={styles.card}>
-                <Image
-                  source={{
-                    uri: user.images?.[0] || defaultPhoto,
-                  }}
-                  style={styles.image}
-                />
-                <View style={styles.info}>
-                  <Text style={styles.name}>
-                    {user.name}
-                    {user.age ? `, ${user.age}` : ""}
-                  </Text>
-                  {user.carrera && <Text style={styles.carrera}>{user.carrera}</Text>}
-                  {user.bio && <Text style={styles.bio}>{user.bio}</Text>}
-                </View>
+          renderCard={(user, index) => {
+            if (!user) return null;
+
+            const cardKey = `${user.id_user}-${activeTab}-${getCurrentHousingPhotoIndex()}`;
+
+            const currentHousingPhotoIndex = getCurrentHousingPhotoIndex();
+            const hasHousing =
+              user?.user_type === "user_with_housing" ||
+              user?.id_housing !== null ||
+              user?.housing_images?.length > 0;
+
+            return (
+              <View key={cardKey} style={styles.card}>
+                {/* 🆕 Tabs de navegación - DENTRO de cada card, arriba de la foto */}
+                {hasHousing && (
+                  <View style={styles.tabsContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.tab,
+                        activeTab === "perfil" && styles.activeTab,
+                      ]}
+                      onPress={() => {
+                        setActiveTab("perfil");
+                        forceSwiperRerender(); // 👈 ACTUALIZA AL TOQUE
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.tabText,
+                          activeTab === "perfil" && styles.activeTabText,
+                        ]}
+                      >
+                        PERFIL
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.tab,
+                        activeTab === "casa" && styles.activeTab,
+                      ]}
+                      onPress={() => {
+                        setActiveTab("casa");
+                        forceSwiperRerender(); // 👈 ACTUALIZA AL TOQUE
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.tabText,
+                          activeTab === "casa" && styles.activeTabText,
+                        ]}
+                      >
+                        CASA
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Contenido según tab activo */}
+                {activeTab === "perfil" ? (
+                  <>
+                    <Image
+                      source={{
+                        uri: user.user_images?.[0] || defaultPhoto,
+                      }}
+                      style={styles.image}
+                    />
+                    <View style={styles.info}>
+                      <Text style={styles.name}>
+                        {user.name}
+                        {user.age ? `, ${user.age}` : ""}
+                      </Text>
+
+                      {user.description &&
+                        user.description !==
+                          "Perfil de usuario " + user.id_user && (
+                          <View style={styles.infoRow}></View>
+                        )}
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.imageContainer}>
+                      {user.housing_images?.length > 0 ? (
+                        <>
+                          <Image
+                            source={{
+                              uri:
+                                user.housing_images[
+                                  currentHousingPhotoIndex
+                                ] ||
+                                "https://placehold.co/400x300?text=Sin%20imagen%20de%20vivienda",
+                            }}
+                            style={styles.image}
+                          />
+                          {user.housing_images.length > 1 && (
+                            <>
+                              <TouchableOpacity
+                                style={styles.leftButton}
+                                onPress={prevHousingPhoto}
+                              >
+                                <Text style={styles.navButtonText}>‹</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.rightButton}
+                                onPress={nextHousingPhoto}
+                              >
+                                <Text style={styles.navButtonText}>›</Text>
+                              </TouchableOpacity>
+
+                              <View style={styles.dotsContainer}>
+                                {user.housing_images.map((_, i) => (
+                                  <View
+                                    key={i}
+                                    style={[
+                                      styles.dot,
+                                      i === currentHousingPhotoIndex &&
+                                        styles.activeDot,
+                                    ]}
+                                  />
+                                ))}
+                              </View>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <Image
+                          source={{
+                            uri: "https://placehold.co/400x300?text=Sin%20imagen%20de%20vivienda",
+                          }}
+                          style={styles.image}
+                        />
+                      )}
+                    </View>
+
+                    <View style={styles.info}>
+                      <View style={styles.nameRow}>
+                        <Text style={styles.name}>Casa</Text>
+                      </View>
+                    </View>
+                  </>
+                )}
               </View>
-            ) : null
-          }
+            );
+          }}
           stackSize={2}
           backgroundColor="transparent"
-          onSwipedLeft={(i) => handleDislike(i)}
-          onSwipedRight={(i) => handleLike(i)}
+          onSwipedLeft={() => {
+            handleDislike(currentUserIndex);
+            handleSwiped();
+          }}
+          onSwipedRight={() => {
+            handleLike(currentUserIndex);
+            handleSwiped();
+          }}
           onSwipedAll={() => setShowEmpty(true)}
         />
 
@@ -213,7 +430,6 @@ export default function Matching() {
             >
               <Check size={48} strokeWidth={3.5} color="#00C853" />
             </TouchableOpacity>
-
           </View>
         )}
 
@@ -259,16 +475,18 @@ export default function Matching() {
               <Text style={styles.matchTitle}>🏡¡Es un Match!🏡</Text>
 
               <View style={styles.matchPhotos}>
-                <Image source={{ uri: myPhoto || defaultPhoto }} style={styles.matchPhoto} />
+                <Image
+                  source={{ uri: myPhoto || defaultPhoto }}
+                  style={styles.matchPhoto}
+                />
                 <Image
                   source={{
-                    uri: matchedUser.images?.[0] || defaultPhoto,
+                    uri: matchedUser.user_images?.[0] || defaultPhoto,
                   }}
                   style={styles.matchPhoto}
                 />
               </View>
 
-              {/* 🆕 Botón para abrir Chat */}
               <TouchableOpacity style={styles.chatButton} onPress={openChat}>
                 <Text style={styles.chatButtonText}>Enviar mensaje 💬</Text>
               </TouchableOpacity>
@@ -280,28 +498,190 @@ export default function Matching() {
   );
 }
 
+// Los estilos se mantienen igual que en el código anterior
 const styles = StyleSheet.create({
+  // 🆕 Estilos para tabs - DENTRO de la card
+  tabsContainer: {
+    flexDirection: "row",
+    marginHorizontal: 10,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 12,
+    padding: 4,
+    zIndex: 10,
+    position: "absolute",
+    top: 15,
+    left: 15,
+    right: 15,
+    elevation: 5,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: COLORS.primary,
+  },
+  activeTabText: {
+    color: "#fff",
+  },
+
+  // 🆕 Estilos para navegación de fotos de vivienda
+  imageContainer: {
+    width: "100%",
+    height: width * 1.1,
+    position: "relative",
+  },
+  leftButton: {
+    position: "absolute",
+    top: "45%",
+    left: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 25,
+    padding: 8,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rightButton: {
+    position: "absolute",
+    top: "45%",
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 25,
+    padding: 8,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navButtonText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    lineHeight: 20,
+  },
+  dotsContainer: {
+    position: "absolute",
+    bottom: 15,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.5)",
+    marginHorizontal: 4,
+  },
+  activeDot: {
+    backgroundColor: "#fff",
+  },
+
+  // 🆕 Estilos para info
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  infoRow: {
+    marginVertical: 2,
+  },
+  infoText: {
+    fontSize: 16,
+    color: "#555",
+  },
+
+  // 🆕 Estilos para detalles del perfil
+  detailsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+  },
+  detail: {
+    fontSize: 14,
+    color: "#666",
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+
+  // 🆕 Estilos para reglas de la casa
+  houseRules: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+  },
+  rule: {
+    fontSize: 14,
+    color: "#2E7D32",
+    backgroundColor: "#E8F5E8",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+
+  // Estilos existentes
   gradientBackground: { flex: 1 },
-  container: { flex: 1, justifyContent: "center", paddingHorizontal: 10, marginTop: 60 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingTop: 60,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   card: {
     flex: 0.75,
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     elevation: 6,
     overflow: "hidden",
+    position: "relative",
+    marginTop: 20,
   },
-  image: { width: "100%", height: width * 1.1, resizeMode: "cover" },
-  info: { padding: 16 },
-  name: { fontSize: 24, fontWeight: "bold", marginBottom: 6, color: "#111" },
-  carrera: { fontSize: 18, color: COLORS.primary, marginBottom: 6 },
-  bio: { fontSize: 16, color: "#6B7280" },
+  image: {
+    width: "100%",
+    height: width * 1.1,
+    resizeMode: "cover",
+  },
+  info: {
+    padding: 16,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 6,
+    color: "#111",
+  },
+  bio: {
+    fontSize: 16,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
   buttonsContainer: {
     flexDirection: "row",
     justifyContent: "space-evenly",
     alignItems: "center",
     position: "absolute",
-    bottom: 140,
+    bottom: 200,
     left: 0,
     right: 0,
   },
@@ -314,9 +694,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     elevation: 5,
   },
-  likeButton: { borderWidth: 2, borderColor: "#00C853" },
-  dislikeButton: { borderWidth: 2, borderColor: "#FF4C4C" },
-  heart: { position: "absolute", top: 0 },
+  likeButton: {
+    borderWidth: 2,
+    borderColor: "#00C853",
+  },
+  dislikeButton: {
+    borderWidth: 2,
+    borderColor: "#FF4C4C",
+  },
+  heart: {
+    position: "absolute",
+    top: 0,
+  },
   matchModalOverlay: {
     position: "absolute",
     top: 0,
@@ -336,8 +725,17 @@ const styles = StyleSheet.create({
     width: "80%",
     elevation: 8,
   },
-  matchTitle: { fontSize: 28, fontWeight: "bold", color: COLORS.primary, marginBottom: 20 },
-  matchPhotos: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  matchTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: COLORS.primary,
+    marginBottom: 20,
+  },
+  matchPhotos: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   matchPhoto: {
     width: 110,
     height: 110,
@@ -346,8 +744,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: COLORS.primary,
   },
-
-  // 🆕 Estilos botón chat
   chatButton: {
     marginTop: 20,
     backgroundColor: COLORS.primary,

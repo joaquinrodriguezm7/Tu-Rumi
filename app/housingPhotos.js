@@ -52,7 +52,6 @@ export default function HousingPhoto() {
           }
         );
 
-        // 🆕 Mantener el nombre original o generar uno similar
         const originalName = asset.fileName || `housing_${Date.now()}.jpg`;
         converted.push({
           uri: manip.uri,
@@ -68,7 +67,6 @@ export default function HousingPhoto() {
     }
   };
 
-  // Upload photos - ESTRUCTURA IDÉNTICA A POSTMAN
   const uploadPhotos = async () => {
     if (photos.length === 0) {
       Alert.alert("Error", "Debes seleccionar al menos 1 foto");
@@ -114,7 +112,6 @@ export default function HousingPhoto() {
         firstFile: photos[0]?.name
       });
 
-      // 🆕 HEADERS IDÉNTICOS A POSTMAN
       const headers = {
         'accesstoken': token,
       };
@@ -124,21 +121,18 @@ export default function HousingPhoto() {
       for (const pair of formData.entries()) {
         console.log(pair[0], pair[1]);
       }
-      // 🆕 PETICIÓN IDÉNTICA A POSTMAN
       const response = await axios.post(
         "https://turumiapi.onrender.com/housing_photos/upload", 
         formData, 
         {
           headers: headers,
           withCredentials:true,
-          // 🆕 NO withCredentials: true (Postman no lo usa por defecto)
           timeout: 30000,
         }
       );
 
       console.log("✅ Respuesta del servidor:", response.data);
 
-      // 🆕 VERIFICAR RESPUESTA IDÉNTICA A POSTMAN
       if (response.data && response.data.code === "PHOTO_UPLOAD_SUCCESSFUL") {
         Alert.alert("Éxito", "Fotos subidas con éxito.");
         setTimeout(() => {

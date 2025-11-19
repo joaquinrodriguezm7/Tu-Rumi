@@ -56,7 +56,7 @@ export const createMatch = async (targetUserId) => {
         },
         withCredentials: true,
       };
-      const resUpdate = await axios.post("/match", body, configPut);
+      const resUpdate = await axios.put("/match", body, configPut);
       console.log("🎉 Match confirmado:", resUpdate.data);
       return { matched: true, match: resUpdate.data.match };
     }

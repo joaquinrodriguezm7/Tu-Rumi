@@ -99,9 +99,9 @@ export default function Chat() {
     const user = allUsers.find((u) => u.id_user === otherId);
 
     // Si no existe el usuario, o no tiene imágenes, vuelve CR7
-    if (!user || !user.images || user.images.length === 0) return CR7;
+    if (!user || !user.user_images || user.user_images.length === 0) return CR7;
 
-    const url = user.images[0];
+    const url = user.user_images[0];
 
     // Si vino null o undefined o string vacía
     if (!url) return CR7;
