@@ -11,10 +11,13 @@ import {
   StyleSheet,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import globalStyles, { COLORS } from "./styles";
+import globalStyles, { COLORS } from "../styles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import axios from "axios";
+import AnimatedLine from "../components/titleBorder"
+import { Ionicons } from "@expo/vector-icons";  
+
 
 axios.defaults.baseURL = "https://turumiapi.onrender.com";
 axios.defaults.withCredentials = true;
@@ -148,122 +151,128 @@ export default function Login() {
       <View style={styles.overlay}>
         <View style={styles.imageOverlay}>
           <Image
-            source={require("../assets/logo_blanco.png")} // 👈 coloca tu logo en /assets/logo.png
+            source={require("../../assets/logo_blanco.png")} 
             style={styles.logo}
             resizeMode="contain"
           />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              position: "absolute",
+              bottom: 16,
+              left: 16
+            }}
+          >
+            <Ionicons name="chevron-back" size={24} color="white" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.formContainer}>
           <View style={styles.form}>
-            <Text style={styles.title}>Iniciar Sesión</Text>
-            <Text style={styles.labelForm}>
-              Email
-            </Text>
-            <TextInput
-              style={[
-                    globalStyles.input,
-                    {
-                      borderBottomWidth: 1,
-                      borderBottomColor: "#929292ff",
-                      borderRadius: 0,        // evita bordes redondeados
-                      borderWidth: 0,         // elimina otros bordes
-                      paddingRight: 36
-                    }
-                  ]}
-              placeholder="example@gmail.com"
-              placeholderTextColor="rgba(0,0,0,0.7)"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-
-            <View style={{ marginTop: 12 }}>
-              <Text
-                style={styles.labelForm}
-              >
-                Contraseña
-              </Text>
-
-              {/* Contenedor sólo para input + icono */}
-              <View style={{ position: "relative", justifyContent: "center" }}>
-                <TextInput
-                  style={[
-                    globalStyles.input,
-                    {
-                      borderBottomWidth: 1,
-                      borderBottomColor: "#929292ff",
-                      borderRadius: 0,
-                      borderWidth: 0,
-                      paddingRight: 40,   // deja espacio para el icono
-                    },
-                  ]}
-                  placeholder="Contraseña"
-                  placeholderTextColor="rgba(0,0,0,0.7)"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-
-                <TouchableOpacity
-                  onPress={() => setShowPassword((prev) => !prev)}
-                  style={{
-                    position: "absolute",
-                    right: 8,
-                    top: 0,
-                    bottom: 16,
-                    justifyContent: "center",
-                  }}
-                >
-                  <Icon
-                    name={showPassword ? "eye-off" : "eye"}
-                    size={22}
-                    color="#888"
-                  />
-                </TouchableOpacity>
-              </View>
+            <View style={{
+              alignSelf: "flex-start",
+              marginBottom: 36
+            }}>
+              <Text style={styles.title}>Iniciar Sesión</Text>
+              <AnimatedLine/>
             </View>
-
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={loading}
-              style={{ marginTop: 48 }}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={[COLORS.primary, COLORS.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{
-                  ...globalStyles.button,
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderRadius: 12,
-                }}
-              >
-                <Text style={globalStyles.buttonText}>
-                  {loading ? "Cargando..." : "Ingresar"}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <View style={{ alignItems: "center", marginTop: 16 }}>
-              <Text
-                style={{ fontWeight: "bold", fontSize: 13, color: "black", opacity: 0.75}}
-              >
-                ¿Aún no tienes cuenta?{" "}
-                <Text
-                  style={{
-                    color: "black",
-                    opacity: 0.9,
-                    textDecorationLine: "underline",
-                  }}
-                  onPress={() => router.replace("/register")}
-                >
-                  Regístrate
-                </Text>
+            <View style={{ paddingHorizontal: 16 }}>
+              <Text style={styles.labelForm}>
+                Email
               </Text>
+              <TextInput
+                style={[
+                      globalStyles.input,
+                      styles.inputForm
+                    ]}
+                placeholder="example@email.com"
+                placeholderTextColor="rgba(0,0,0,0.7)"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <View>
+                <Text
+                  style={styles.labelForm}
+                >
+                  Contraseña
+                </Text>
+
+                {/* Contenedor sólo para input + icono */}
+                <View style={{ position: "relative", justifyContent: "center" }}>
+                  <TextInput
+                    style={[
+                      globalStyles.input,
+                      styles.inputForm
+                    ]}
+                    placeholder="Ingresa tu contraseña"
+                    placeholderTextColor="rgba(0,0,0,0.7)"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+
+                  <TouchableOpacity
+                    onPress={() => setShowPassword((prev) => !prev)}
+                    style={{
+                      position: "absolute",
+                      right: 8,
+                      top: 0,
+                      bottom: 16,
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Icon
+                      name={showPassword ? "eye-off" : "eye"}
+                      size={22}
+                      color="#888"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleLogin}
+                disabled={loading}
+                style={{ marginTop: 48 }}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={[COLORS.primary, COLORS.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{
+                    ...globalStyles.button,
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: 12,
+                  }}
+                >
+                  <Text style={globalStyles.buttonText}>
+                    {loading ? "Cargando..." : "Ingresar"}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <View style={{ alignItems: "center", marginTop: 16 }}>
+                <Text
+                  style={{ fontWeight: "bold", fontSize: 13, color: "black", opacity: 0.75}}
+                >
+                  ¿Aún no tienes cuenta?{" "}
+                  <Text
+                    style={{
+                      color: "black",
+                      opacity: 0.9,
+                      textDecorationLine: "underline",
+                    }}
+                    onPress={() => router.push("/register")}
+                  >
+                    Regístrate
+                  </Text>
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -306,11 +315,18 @@ const styles = StyleSheet.create({
   },
   form: {
     borderRadius: 20,
-    padding: 24,
-    elevation: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 16,
     marginBottom: 24,
-    marginTop: 64,
+    marginTop: 24,
     marginHorizontal: 24,
+  },
+  inputForm: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#929292ff",
+    borderRadius: 0,
+    borderWidth: 0,
+    paddingRight: 36
   },
   labelForm: {
     fontSize: 18, 
@@ -319,10 +335,9 @@ const styles = StyleSheet.create({
     fontWeight: "600" 
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "bold",
     color: "#3C8DFF",
-    textAlign: "center",
-    marginBottom: 48,
+    textAlign: "start",
   },
 });
