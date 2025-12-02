@@ -69,8 +69,8 @@ export default function ChatRoom() {
 
         // FOTO OTRO USER
         setOtherPhoto(
-          other?.images?.length > 0
-            ? other.images[0]
+          other?.user_images?.length > 0
+            ? other.user_images[0]
             : "https://upload.wikimedia.org/wikipedia/commons/9/99/Sample_User_Icon.png"
         );
 
