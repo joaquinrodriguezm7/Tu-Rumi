@@ -17,6 +17,9 @@ export default function Settings() {
       );
 
       await AsyncStorage.removeItem("user");
+      await AsyncStorage.removeItem("accessToken");
+      await AsyncStorage.removeItem("refreshToken");
+      
       Alert.alert("Sesión cerrada", "Has cerrado sesión correctamente.");
       router.replace("/login");
     } catch (error) {

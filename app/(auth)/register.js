@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -28,6 +28,9 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const passwordRef = useRef();
+  const confirmPasswordRef = useRef();
+
   const handleRegister = async () => {
     if (!email || !password || !confirmPassword || !userType) {
       Alert.alert("Error", "Debes ingresar email, contraseña y tipo de usuario");
@@ -42,7 +45,7 @@ export default function Register() {
     try {
       setLoading(true);
 
-      const res = await fetch("https://turumiapi.onrender.com/user", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, user_type: userType }),
@@ -119,12 +122,15 @@ export default function Register() {
                   keyboardType="email-address"
                   value={email}
                   onChangeText={setEmail}
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current.focus()}
                 />
 
                 <Text style={styles.labelForm}>
                   Contraseña
                 </Text>
                 <TextInput
+                  ref={passwordRef}
                   style={[
                     globalStyles.input,
                     styles.inputForm
@@ -133,12 +139,15 @@ export default function Register() {
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
+                  returnKeyType="next"
+                  onSubmitEditing={() => confirmPasswordRef.current.focus()}
                 />
 
                 <Text style={styles.labelForm}>
                   Confirmar Contraseña
                 </Text>
                 <TextInput
+                  ref={confirmPasswordRef}
                   style={[
                     globalStyles.input,
                     styles.inputForm

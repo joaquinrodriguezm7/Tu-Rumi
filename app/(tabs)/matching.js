@@ -10,6 +10,7 @@ import {
   Animated,
   Easing,
   Alert,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Swiper from "react-native-deck-swiper";
@@ -21,9 +22,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";   // 🆕 Para navegar al chat
 
 const { width, height } = Dimensions.get("window");
+// Alturas aproximadas del header y tab bar según layout
+const HEADER_HEIGHT = 60;
+const TABBAR_HEIGHT = 60;
+// Altura disponible para el card (ajustable si cambian tamaños)
+const AVAILABLE_HEIGHT = height - HEADER_HEIGHT - TABBAR_HEIGHT; // referencia si se necesita cálculo explícito en web
 
 export default function Matching() {
   const [users, setUsers] = useState([]);
+  const [cardIndex, setCardIndex] = useState(0);
   const [myPhoto, setMyPhoto] = useState(null);
   const [myUserId, setMyUserId] = useState(null);   // 🆕 Tu ID real
   const [showEmpty, setShowEmpty] = useState(false);
@@ -36,10 +43,6 @@ export default function Matching() {
 
   const router = useRouter();  // 🆕
 
-  const defaultPhoto =
-    "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg";
-
-  // 🧠 Cargar tu userId + usuarios recomendados
   useEffect(() => {
     const loadMyData = async () => {
       const storedId = await AsyncStorage.getItem("userId");
@@ -62,7 +65,9 @@ export default function Matching() {
           "https://turumiapi.onrender.com/user/recommendations",
           config
         );
-        setUsers(res.data.recommendations || []);
+        const recs = res.data.recommendations || [];
+        setUsers(recs);
+        setCardIndex(0);
 
         // 🧍‍♂️ Obtener tu foto
         try {
@@ -164,58 +169,83 @@ export default function Matching() {
   }
 
   return (
-    <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.gradientBackground}>
-      <View style={styles.container}>
+    <LinearGradient colors={["rgba(255, 255, 255, 1)", "rgba(255, 255, 255, 1)"]} style={styles.gradientBackground}>
+      <View style={{ flex: 1 }}>
         {/* 💳 Swiper */}
+        <View style={styles.swiperContainer}>
         <Swiper
           ref={swiperRef}
           cards={users}
+          cardIndex={cardIndex}
           renderCard={(user) =>
             user ? (
               <View style={styles.card}>
-                <Image
-                  source={{
-                    uri: user.images?.[0] || defaultPhoto,
-                  }}
-                  style={styles.image}
-                />
-                <View style={styles.info}>
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={(() => {
+                      const profile = Array.isArray(user?.user_images) && user.user_images.length > 0 ? user.user_images[0] : null;
+                      const housing = Array.isArray(user?.housing_images) && user.housing_images.length > 0 ? user.housing_images[0] : null;
+                      const uri = profile || housing;
+                      return uri ? { uri } : require("../../assets/general-img-landscape.png");
+                    })()}
+                    style={styles.image}
+                  />
+                </View>
+                <View style={styles.infoContainer}>
                   <Text style={styles.name}>
                     {user.name}
                     {user.age ? `, ${user.age}` : ""}
                   </Text>
-                  {user.carrera && <Text style={styles.carrera}>{user.carrera}</Text>}
-                  {user.bio && <Text style={styles.bio}>{user.bio}</Text>}
+                  {user.occupation && <Text style={styles.carrera}>{user.occupation}</Text>}
+                  {user.description && <Text style={styles.bio}>{user.description}</Text>}
+                  {user.lifestyle_schedule && <Text style={styles.bio}>{user.lifestyle_schedule}</Text>}
                 </View>
               </View>
             ) : null
           }
-          stackSize={2}
+          stackSize={1}
           backgroundColor="transparent"
-          onSwipedLeft={(i) => handleDislike(i)}
-          onSwipedRight={(i) => handleLike(i)}
+          verticalSwipe={false}
+          disableTopSwipe
+          disableBottomSwipe
+          stackSeparation={0}
+          animateCardOpacity
+          cardStyle={styles.swiperCard}
+          containerStyle={styles.swiperAbsoluteContainer}
+          onSwiped={(i) => setCardIndex((prev) => Math.min(prev + 1, Math.max(i + 1, prev + 1, users.length - 1)))}
+          onSwipedLeft={(i) => {
+            // Avanza el índice usando el índice provisto por el callback
+            setCardIndex((prev) => Math.min(i + 1, users.length - 1));
+            handleDislike(i);
+          }}
+          onSwipedRight={(i) => {
+            setCardIndex((prev) => Math.min(i + 1, users.length - 1));
+            handleLike(i);
+          }}
           onSwipedAll={() => setShowEmpty(true)}
         />
+        </View>
 
-        {/* Botones */}
-        {!showEmpty && (
-          <View style={styles.buttonsContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.dislikeButton]}
-              onPress={() => swiperRef.current.swipeLeft()}
-            >
-              <X size={48} strokeWidth={3.5} color="#FF4C4C" />
-            </TouchableOpacity>
+        {/* Botones 
+          {!showEmpty && (
+            <View style={styles.buttonsContainer} pointerEvents="box-none">
+              <TouchableOpacity
+                style={[styles.button, styles.dislikeButton]}
+                onPress={() => swiperRef.current.swipeLeft()}
+              >
+                <X size={48} strokeWidth={3.5} color="#FF4C4C" />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.likeButton]}
-              onPress={() => swiperRef.current.swipeRight()}
-            >
-              <Check size={48} strokeWidth={3.5} color="#00C853" />
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.likeButton]}
+                onPress={() => swiperRef.current.swipeRight()}
+              >
+                <Check size={48} strokeWidth={3.5} color="#00C853" />
+              </TouchableOpacity>
 
-          </View>
-        )}
+            </View>
+          )}
+        */}
 
         {/* 🏠 Animación de casitas */}
         {showHearts &&
@@ -281,29 +311,65 @@ export default function Matching() {
 }
 
 const styles = StyleSheet.create({
-  gradientBackground: { flex: 1 },
-  container: { flex: 1, justifyContent: "center", paddingHorizontal: 10, marginTop: 60 },
+  // En web reservamos espacio manual para el tab bar; en móvil dejamos que el tab bar se superponga
+  gradientBackground: { flex: 1, paddingBottom: Platform.OS === 'web' ? TABBAR_HEIGHT : 0 },
+  container: { flex: 1, justifyContent: "center"},
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  card: {
-    flex: 0.75,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    elevation: 6,
-    overflow: "hidden",
+  swiperContainer: {
+    flex: 1,
+    width: '100%',
   },
-  image: { width: "100%", height: width * 1.1, resizeMode: "cover" },
-  info: { padding: 16 },
-  name: { fontSize: 24, fontWeight: "bold", marginBottom: 6, color: "#111" },
+  swiperCard: {
+    width: '100%',
+    height: '100%',
+    marginLeft: 0,
+    marginRight: 0,
+    padding: Platform.OS === 'web' ? 12 : 8,
+  },
+  swiperAbsoluteContainer: {
+    flex: 1,
+    width: '100%',
+    marginLeft: 0,
+    marginRight: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    paddingBottom: Platform.OS === 'web' ? TABBAR_HEIGHT : 60,
+    left: -20,
+    right: 0,
+  },
+  card: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    elevation: 6,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  imageContainer: {
+    flex: 3, // 75%
+    width: '100%',
+  },
+  infoContainer: {
+    flex: 1, // 25%
+    padding: 16,
+    justifyContent: 'flex-start',
+  },
+  image: { flex: 1, width: '100%', height: '100%', resizeMode: 'cover' },
+  name: { fontSize: 24, fontWeight: "bold", color: "#111" },
   carrera: { fontSize: 18, color: COLORS.primary, marginBottom: 6 },
   bio: { fontSize: 16, color: "#6B7280" },
   buttonsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    alignItems: "center",
-    position: "absolute",
-    bottom: 140,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    position: 'absolute',
+    // En móvil los dejamos algo más arriba para no chocar con el tab bar nativo
+    bottom: Platform.OS === 'web' ? 10 : TABBAR_HEIGHT + -50,
     left: 0,
     right: 0,
+    zIndex: 999,
   },
   button: {
     width: 70,
@@ -329,9 +395,9 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   matchModal: {
-    backgroundColor: "#fff",
+    backgroundColor: "#000",
     borderRadius: 20,
-    padding: 24,
+    padding: 48,
     alignItems: "center",
     width: "80%",
     elevation: 8,

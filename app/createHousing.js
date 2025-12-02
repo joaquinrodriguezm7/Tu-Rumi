@@ -14,8 +14,9 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { COLORS } from "./styles";
+import { API_URL } from "@env";
 
-axios.defaults.baseURL = "https://turumiapi.onrender.com";
+axios.defaults.baseURL = API_URL;
 axios.defaults.withCredentials = true;
 
 export default function CreateHousing() {

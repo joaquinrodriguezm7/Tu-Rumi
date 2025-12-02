@@ -3,56 +3,16 @@ import {
   View,
   Pressable,
   Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  Platform,
-  Image,
   StyleSheet
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import globalStyles, { COLORS } from "../styles";
 import { useRouter } from "expo-router";
-import axios from "axios";
-import AnimatedLine from "../components/titleBorder"
 import Svg, { Path } from "react-native-svg";
-
-axios.defaults.baseURL = "https://turumiapi.onrender.com";
-axios.defaults.withCredentials = true;
-
-axios.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.data?.code === "ACCESS_TOKEN_EXPIRED") {
-      console.warn("🔁 Token expirado, refrescando...");
-      try {
-        await axios.get("/auth/refresh", { withCredentials: true });
-        console.log("✅ Token refrescado correctamente");
-        return axios(error.config);
-      } catch (refreshError) {
-        console.error("❌ Error al refrescar token:", refreshError);
-        Alert.alert("Sesión expirada", "Por favor vuelve a iniciar sesión.");
-      }
-    }
-    return Promise.reject(error);
-  }
-);
 
 export default function Login() {
   const router = useRouter();
-
-  // Expo Go no soporta cookies nativas, así que devolvemos null siempre
-  const getCsrfToken = async () => null;
-
-  // Función para obtener un valor de cookie por nombre (solo Web)
-  function getCookie(name) {
-    if (Platform.OS !== "web") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-    return null;
-  }
 
   return (
     <LinearGradient

@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useRouter } from "expo-router";
 
-axios.defaults.baseURL = "https://turumiapi.onrender.com";
+axios.defaults.baseURL = process.env.API_URL;
 axios.defaults.withCredentials = true;
 
 export default function RegisterProfile() {

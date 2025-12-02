@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   View,
@@ -17,9 +17,9 @@ import { useRouter } from "expo-router";
 import axios from "axios";
 import AnimatedLine from "../components/titleBorder"
 import { Ionicons } from "@expo/vector-icons";  
+import { API_URL } from "@env";
 
-
-axios.defaults.baseURL = "https://turumiapi.onrender.com";
+axios.defaults.baseURL = API_URL;
 axios.defaults.withCredentials = true;
 
 axios.interceptors.response.use(
@@ -47,17 +47,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  // Expo Go no soporta cookies nativas, así que devolvemos null siempre
-  const getCsrfToken = async () => null;
-
-  // Función para obtener un valor de cookie por nombre (solo Web)
-  function getCookie(name) {
-    if (Platform.OS !== "web") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-    return null;
-  }
+  const passwordRef = useRef();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -70,22 +60,21 @@ export default function Login() {
 
       const res = await axios.post("/auth/login", { email, password }, { withCredentials: true });
 
-      console.log("✅ Login correcto:", res.data);
+      console.log("Login correcto:", res.data);
 
-      // 🧠 Extraemos usuario y tokens del backend
       const { user, tokens } = res.data;
 
-      // 🔐 Obtener tokens desde cookies (solo web)
-      let accessToken = getCookie("accessToken");
-      let refreshToken = getCookie("refreshToken");
+      if (!tokens.accessToken || !tokens.refreshToken) {
+        console.warn("No se ha encontrado tokens de acceso y/o de refresh")
+        return;
+      };
 
-      // Si vienen en el body (como hace tu compañero), usarlos
-      if (tokens?.accessToken) accessToken = tokens.accessToken;
-      if (tokens?.refreshToken) refreshToken = tokens.refreshToken;
+      const accessToken = tokens.accessToken
+      const refreshToken = tokens.refreshToken
 
-      console.log("🔑 Tokens recibidos:", { accessToken, refreshToken });
+      await AsyncStorage.setItem("accessToken", accessToken);
+      await AsyncStorage.setItem("refreshToken", refreshToken);
 
-      // Guardar usuario y tokens en AsyncStorage
       const userWithPhoto = {
         ...user,
         photo_url:
@@ -94,29 +83,13 @@ export default function Login() {
       };
 
       await AsyncStorage.setItem("user", JSON.stringify(userWithPhoto));
-
-      // 🆕 Guardar el ID del usuario de forma segura
+      
       if (user?.id) {
         await AsyncStorage.setItem("userId", String(user.id));
         console.log("💾 userId guardado:", user.id);
       } else {
         console.warn("⚠️ No se encontró id_user en la respuesta del backend");
       }
-
-      if (accessToken) {
-        await AsyncStorage.setItem("accessToken", accessToken);
-        console.log("💾 accessToken guardado en AsyncStorage");
-      } else {
-        console.warn("⚠️ No se recibió accessToken del backend");
-      }
-
-      if (refreshToken) {
-        await AsyncStorage.setItem("refreshToken", refreshToken);
-      }
-
-      // Verificar guardado (debug)
-      const savedToken = await AsyncStorage.getItem("accessToken");
-      console.log("🧩 accessToken verificado:", savedToken);
 
       // Redirigir según campos requeridos
       const requiredFields = ["name", "age", "gender", "phone_number"];
@@ -191,6 +164,8 @@ export default function Login() {
                 keyboardType="email-address"
                 value={email}
                 onChangeText={setEmail}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current.focus()}
               />
 
               <View>
@@ -212,6 +187,7 @@ export default function Login() {
                     secureTextEntry={!showPassword}
                     value={password}
                     onChangeText={setPassword}
+                    ref={passwordRef}
                   />
 
                   <TouchableOpacity
@@ -276,6 +252,8 @@ export default function Login() {
             </View>
           </View>
         </View>
+      </View>
+      <View>
       </View>
     </LinearGradient>
   );
