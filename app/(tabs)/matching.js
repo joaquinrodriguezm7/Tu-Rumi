@@ -386,7 +386,7 @@ export default function Matching() {
                   style={styles.matchPhoto}
                 />
                 <Image
-                  source={matchedUser?.images?.[0] ? { uri: matchedUser.images[0] } : defaultPhoto}
+                  source={matchedUser?.user_images?.[0] ? { uri: matchedUser.user_images[0] } : defaultPhoto}
                   style={styles.matchPhoto}
                 />
               </View>

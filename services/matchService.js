@@ -78,8 +78,15 @@ export const createMatch = async (targetUserId) => {
 
     // 5️⃣ Crear nuevo match (POST /match)
     console.log("🆕 No hay match inverso, creando uno nuevo (pending)...");
-    // Backend espera `to_id_user` como usuario objetivo
-    const body = { to_id_user: targetId, like: true };
+    // Algunos backends requieren también el from_id_user explícito; enviamos variantes para máxima compatibilidad
+    const body = {
+      from_id_user: currentUserId,
+      to_id_user: targetId,
+      // Campos redundantes por si el backend usa otros nombres
+      targetUserId: targetId,
+      like: true,
+    };
+    console.log("🛫 POST /match body:", body);
     const configPost = {
       headers: {
         accesstoken: token,
@@ -87,7 +94,20 @@ export const createMatch = async (targetUserId) => {
       },
       withCredentials: true,
     };
-    const resPost = await axios.post("/match", body, configPost);
+    let resPost;
+    try {
+      resPost = await axios.post("/match", body, configPost);
+    } catch (e) {
+      // Si falla por usuario objetivo, intentamos con sólo to_id_user
+      const msg = e.response?.data?.message || e.message || "";
+      if (/usuario objetivo/i.test(msg)) {
+        const fallbackBody = { to_id_user: targetId, like: true };
+        console.warn("🔁 Reintentando creación de match con cuerpo simplificado:", fallbackBody);
+        resPost = await axios.post("/match", fallbackBody, configPost);
+      } else {
+        throw e;
+      }
+    }
     console.log("📬 Match creado (pending):", resPost.data);
     return { matched: false, match: resPost.data.match };
 
